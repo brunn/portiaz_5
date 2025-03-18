@@ -1,8 +1,15 @@
 {
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://github.com/brunn/portiaz_5.git"
+    "name": "brunn/portiaz_5",
+    "homepage": "https://github.com/brunn/portiaz_5",
+    "description": "Portiaz 5",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Portiaz5\\": "src/"
         }
-    ]
+    },
+    "require": {},
+    "minimum-stability": "dev",
+    "prefer-stable": true
 }
