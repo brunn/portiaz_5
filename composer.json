@@ -1,0 +1,8 @@
+{
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/brunn/portiaz_5.git"
+        }
+    ]
+}
