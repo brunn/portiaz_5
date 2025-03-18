@@ -4,11 +4,13 @@ Sisu on oma arvutis ja kui see sul just õues pole siis vähemalt mingi privaats
 
 ## Sätted
 
-| Käsk |
-|------|
-| `chmod -R 777 /var/www/html/portiaz_5/` |
-| `chmod -R 777 /var/www/html/portiaz_5/uploads/` |
-| `chmod -R 777 /var/www/html/portiaz_5/ANDMEBAAS_PUU.db` |
+Sqlite install: 
+* *apt install php-sqlite3*
+
+Kaustade seaded:
+* *chmod -R 777 /var/www/html/portiaz_5/*
+* *chmod -R 777 /var/www/html/portiaz_5/uploads/*
+* *chmod -R 777 /var/www/html/portiaz_5/ANDMEBAAS_PUU.db*
 
 
 # Peavaade
