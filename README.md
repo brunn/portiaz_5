@@ -8,7 +8,7 @@ Sqlite install:
 * *apt install php-sqlite3*
 
 Kaustade seaded:
-* *chmod -R 777 /var/www/html/portiaz_5/*
+* *chmod -R 777 /var/www/html/portiaz_5/* või sudo chmod -R 777 "$PWD"
 
 ## Composer:
 * *composer require brunn/portiaz_5:^1.0*
