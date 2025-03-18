@@ -10,6 +10,6 @@
         }
     },
     "require": {},
-    "minimum-stability": "1",
+    "minimum-stability": "stable",
     "prefer-stable": true
 }
