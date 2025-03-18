@@ -1,2 +1,2 @@
 # portiaz_5
-Märkmis lokaalseks kasutamiseks
+Märkmik lokaalseks kasutamiseks
