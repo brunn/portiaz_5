@@ -4,11 +4,6 @@
     "description": "Portiaz 5",
     "type": "library",
     "license": "MIT",
-    "autoload": {
-        "psr-4": {
-            "Portiaz5\\": "src/"
-        }
-    },
     "require": {},
     "minimum-stability": "stable",
     "prefer-stable": true
