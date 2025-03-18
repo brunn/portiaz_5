@@ -3,8 +3,8 @@ Lokaalseks kasutamiseks. Mõte oli lihtsalt luua väike abimees. Koguda linke, n
 Sisu on oma arvutis ja kui see sul just õues pole siis vähemalt mingi privaatsus.
 
 ## Sätted
-* chmod -R 777 /var/www/html/portiaz_5/uploads/
-* chmod -R 777 /var/www/html/portiaz_5/ANDMEBAAS_PUU.db
+* **chmod -R 777 /var/www/html/portiaz_5/uploads/**
+* **chmod -R 777 /var/www/html/portiaz_5/ANDMEBAAS_PUU.db**
 
 # Peavaade
 ![Kirjeldus](ajaloo_vaade.png)
