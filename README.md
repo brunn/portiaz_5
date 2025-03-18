@@ -9,9 +9,6 @@ Sqlite install:
 
 Kaustade seaded:
 * *chmod -R 777 /var/www/html/portiaz_5/*
-* *chmod -R 777 /var/www/html/portiaz_5/uploads/*
-* *chmod -R 777 /var/www/html/portiaz_5/ANDMEBAAS_PUU.db*
-
 
 # Peavaade
 ![Kirjeldus](ajaloo_vaade.png)
