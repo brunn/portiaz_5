@@ -6,7 +6,12 @@ Lokaalseks kasutamiseks.
 # Peavaade
 ![Kirjeldus](ajaloo_vaade.png)
 Märkmik lokaalseks kasutamiseks
-# Pildi vaade
+# Pildi kommentaaride vaade
 ![Kirjeldus](pildivaade.png)
 # Postituse vaade 
 ![Kirjeldus](postituse_vaade.png)
+# Otsingu vaade 
+![Kirjeldus](otsingu_vaade.png)
+# Postituse redigeerimise vaade 
+![Kirjeldus](postituse_redigeerimise_vaade.png)
+
