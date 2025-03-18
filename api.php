@@ -2,14 +2,12 @@
 header('Content-Type: application/json');
 
 $db = new SQLite3(__DIR__ . '/ANDMEBAAS_PUU.db');
-// Andmebaasi initsialiseerimine
 $db->exec('CREATE TABLE IF NOT EXISTS puu (id INTEGER PRIMARY KEY, nimi TEXT, vanem_id INTEGER, on_oks INTEGER)');
 $db->exec('CREATE TABLE IF NOT EXISTS postitused (id INTEGER PRIMARY KEY, puu_id INTEGER, tekst TEXT, aeg TEXT)');
 $db->exec('CREATE TABLE IF NOT EXISTS kommentaarid (id INTEGER PRIMARY KEY, postitus_id INTEGER, vanem_id INTEGER, tekst TEXT, aeg TEXT)');
 $db->exec('CREATE TABLE IF NOT EXISTS failid (id INTEGER PRIMARY KEY, postitus_id INTEGER, kommentaar_id INTEGER, nimi TEXT, andmed BLOB)');
-
-// Kontrolli, kas puu on tühi, ja loo vaikimisi struktuur
 $result = $db->querySingle('SELECT COUNT(*) FROM puu');
+
 if ($result == 0) {
     $db->exec("INSERT INTO puu (nimi, vanem_id, on_oks) VALUES ('Juur', NULL, 1)");
     $juur_id = $db->lastInsertRowID();
@@ -60,7 +58,6 @@ switch ($action) {
         echo json_encode(['success' => true]);
         break;
 
-    // Lisa see olemasoleva switch-case sisse, enne 'default' juhtumit
     case 'get_history':
         $limit = $_GET['limit'] ?? 10;
         $history = [];
@@ -84,9 +81,6 @@ switch ($action) {
         
         usort($history, function($a, $b) { return $b['aeg'] - $a['aeg']; });
         $history = array_slice($history, 0, $limit);
-        
-        // Veendu, et väljastad alati massiivi
-        //header('Content-Type: application/json');
         echo json_encode($history ?: []);
         break;
 
