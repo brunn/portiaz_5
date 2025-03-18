@@ -4,4 +4,4 @@ Märkmik lokaalseks kasutamiseks
 # Pildi vaade
 ![Kirjeldus](pildivaade.png)
 # Postituse vaade 
-![Kirjeldus](postituse_vaade)
+![Kirjeldus](postituse_vaade.png)
