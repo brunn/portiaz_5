@@ -11,12 +11,6 @@ Kaustade seaded:
 * *chmod -R 777 /var/www/html/portiaz_5/*
 
 ## Composer:
-{
-    "require": {
-        "brunn/portiaz_5": "dev-main"
-    }
-}
-
 * *composer require brunn/portiaz_5:^1.0*
 
 # Peavaade
