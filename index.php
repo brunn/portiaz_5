@@ -546,7 +546,9 @@ const PuuHaldur = {
 
     näitaKontekstimenüüd(e, sõlm) {
         e.preventDefault();
-        Andmed.valitudSõlm = sõlm;
+        // Kui vasakklõps on juba sõlme valinud, kasutame seda; vastasel juhul paremklõpsu sõlme
+        const valitudSõlm = Andmed.valitudSõlm || sõlm;
+        console.log('Valitud sõlm kontekstimenüüs:', valitudSõlm); // Logi kontrolliks
         const menüü = document.getElementById('kontekstimenüü');
         const menüüSisu = document.getElementById('kontekstimenüü-sisu');
         menüüSisu.innerHTML = '';
@@ -554,14 +556,23 @@ const PuuHaldur = {
         const opts = [
             { text: 'Lisa oks', action: () => this.lisaOks() },
             { text: 'Lisa leht', action: () => this.lisaLeht() },
-            { text: sõlm.on_oks ? 'Kustuta oks' : 'Kustuta leht', action: () => this.kustutaSõlm() },
-            { text: sõlm.on_oks ? 'Nimeta ümber oks' : 'Nimeta ümber leht', action: () => this.nimetaÜmber() }
+            { text: valitudSõlm.on_oks ? 'Kustuta oks' : 'Kustuta leht', action: () => this.kustutaSõlm() },
+            { text: 'Nimeta ümber oks', action: () => this.nimetaOksÜmber(), disabled: valitudSõlm.on_oks !== 1 },
+            { text: 'Nimeta ümber leht', action: () => this.nimetaLehtÜmber(), disabled: valitudSõlm.on_oks !== 0 }
         ];
 
         opts.forEach(opt => {
             const li = document.createElement('li');
             li.textContent = opt.text;
-            li.onclick = opt.action;
+            if (!opt.disabled) {
+                li.onclick = () => {
+                    Andmed.valitudSõlm = valitudSõlm; // Veendu, et valitud sõlm on seatud
+                    opt.action();
+                };
+            } else {
+                li.style.color = '#ccc';
+                li.style.cursor = 'not-allowed';
+            }
             menüüSisu.appendChild(li);
         });
 
@@ -569,6 +580,44 @@ const PuuHaldur = {
         menüü.style.left = `${e.clientX}px`;
         menüü.style.top = `${e.clientY}px`;
         document.onclick = () => menüü.style.display = 'none';
+    },
+
+    async nimetaOksÜmber() {
+        if (!Andmed.valitudSõlm || !Andmed.valitudSõlm.on_oks) return alert('Vali esmalt oks!');
+        const uusNimi = prompt(`Sisesta uus nimi oksale "${Andmed.valitudSõlm.nimi}":`, Andmed.valitudSõlm.nimi);
+        if (!uusNimi || uusNimi === Andmed.valitudSõlm.nimi) return;
+        try {
+            const vastus = await apiKutse('update_puu', { id: Andmed.valitudSõlm.id, nimi: uusNimi });
+            if (vastus.status === 'updated') {
+                Andmed.valitudSõlm.nimi = uusNimi;
+                await this.laadiPuu();
+                this.kuvaPostitamisLeht();
+            } else {
+                alert('Oksa ümbernimetamine ebaõnnestus!');
+            }
+        } catch (e) {
+            console.error('Oksa ümbernimetamise viga:', e);
+            alert('Viga serveriga suhtlemisel!');
+        }
+    },
+
+    async nimetaLehtÜmber() {
+        if (!Andmed.valitudSõlm || Andmed.valitudSõlm.on_oks) return alert('Vali esmalt leht!');
+        const uusNimi = prompt(`Sisesta uus nimi lehele "${Andmed.valitudSõlm.nimi}":`, Andmed.valitudSõlm.nimi);
+        if (!uusNimi || uusNimi === Andmed.valitudSõlm.nimi) return;
+        try {
+            const vastus = await apiKutse('update_puu', { id: Andmed.valitudSõlm.id, nimi: uusNimi });
+            if (vastus.status === 'updated') {
+                Andmed.valitudSõlm.nimi = uusNimi;
+                await this.laadiPuu();
+                this.kuvaPostitamisLeht();
+            } else {
+                alert('Lehe ümbernimetamine ebaõnnestus!');
+            }
+        } catch (e) {
+            console.error('Lehe ümbernimetamise viga:', e);
+            alert('Viga serveriga suhtlemisel!');
+        }
     },
 
     async lisaOks() {
@@ -596,11 +645,22 @@ const PuuHaldur = {
 
     async nimetaÜmber() {
         if (!Andmed.valitudSõlm) return alert('Vali esmalt sõlm!');
-        const uusNimi = prompt(`Sisesta uus nimi "${Andmed.valitudSõlm.nimi}":`, Andmed.valitudSõlm.nimi);
+        const tyyp = Andmed.valitudSõlm.on_oks ? 'oks' : 'leht';
+        const uusNimi = prompt(`Sisesta uus nimi ${tyyp} "${Andmed.valitudSõlm.nimi}" jaoks:`, Andmed.valitudSõlm.nimi);
         if (!uusNimi || uusNimi === Andmed.valitudSõlm.nimi) return;
-        await apiKutse('update_puu', { id: Andmed.valitudSõlm.id, nimi: uusNimi });
-        this.laadiPuu();
-        this.kuvaPostitamisLeht();
+        try {
+            const vastus = await apiKutse('update_puu', { id: Andmed.valitudSõlm.id, nimi: uusNimi });
+            if (vastus.status === 'updated') {
+                Andmed.valitudSõlm.nimi = uusNimi; // Uuenda kohalikku andmestruktuuri
+                await this.laadiPuu(); // Laadi puu uuesti
+                this.kuvaPostitamisLeht(); // Värskenda sisu
+            } else {
+                alert('Ümbernimetamine ebaõnnestus!');
+            }
+        } catch (e) {
+            console.error('Ümbernimetamise viga:', e);
+            alert('Viga serveriga suhtlemisel!');
+        }
     },
 
     kuvaPostitamisLeht() {
