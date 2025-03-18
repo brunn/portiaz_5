@@ -454,6 +454,10 @@ if (isset($_GET['action'])) {
     </div>
 
     <script>
+ 
+    const BASE_URL = '<?php echo rtrim(dirname($_SERVER['PHP_SELF']), '/'); ?>';
+
+
  // Andmestruktuur
 const Andmed = {
     puu: [],
@@ -830,42 +834,43 @@ const PostitusteHaldur = {
             const manused = JSON.parse(postitus.manused || '[]');
             let failideHtml = '';
             if (manused.length > 0) {
-                failideHtml = '<div class="postituse-failid">';
-                const galerii = document.createElement('div');
-                galerii.className = 'galerii';
-                for (const manus of manused) {
-                    if (manus.type.startsWith('image/')) {
-                        const galeriiÜksus = document.createElement('div');
-                        galeriiÜksus.className = 'galerii-üksus';
-                        galeriiÜksus.innerHTML = `<img src="${manus.path}" alt="${manus.path.split('/').pop()}" onclick="PostitusteHaldur.avaPilt('${manus.path}')">`;
-                        galerii.appendChild(galeriiÜksus);
+            failideHtml = '<div class="postituse-failid">';
+            const galerii = document.createElement('div');
+            galerii.className = 'galerii';
+            for (const manus of manused) {
+                const fullPath = `${BASE_URL}${manus.path}`; // Lisa baas-URL
+                if (manus.type.startsWith('image/')) {
+                    const galeriiÜksus = document.createElement('div');
+                    galeriiÜksus.className = 'galerii-üksus';
+                    galeriiÜksus.innerHTML = `<img src="${fullPath}" alt="${manus.path.split('/').pop()}" onclick="PostitusteHaldur.avaPilt('${fullPath}')">`;
+                    galerii.appendChild(galeriiÜksus);
 
-                        const imgComments = await apiKutse('get_image_comments', { pilt_path: manus.path });
-                        if (imgComments.length > 0) {
-                            const imgCommDiv = document.createElement('div');
-                            imgCommDiv.className = 'pildi-kommentaarid';
-                            imgComments.forEach(komm => {
-                                let kommTekst = komm.tekst.replace(/\[([^\]]+)\]\(#postitus-(\d+)\)/g, 
-                                    (match, p1, p2) => {
-                                        const targetPost = kõikPostitused.find(p => p.id === parseInt(p2));
-                                        const puuId = targetPost ? targetPost.puu_id : null;
-                                        return `<a href="#postitus-${p2}" onclick="AjaluguHaldur.liiguKirjeni('postitus', ${p2}, ${puuId || 'null'}); return false;">${p1}</a>`;
-                                    });
-                                imgCommDiv.innerHTML += `
-                                    <div class="kommentaar pildi-kommentaar" id="fail-${komm.id}">
-                                        <img src="${manus.path}" style="width: 50px; height: 50px; float: left; margin-right: 10px;">
-                                        <p>${kommTekst} <small>${new Date(komm.aeg * 1000).toLocaleString()}</small></p>
-                                    </div>
-                                `;
-                            });
-                            galerii.appendChild(imgCommDiv);
-                        }
-                    } else {
-                        failideHtml += `<a href="${manus.path}" target="_blank">${manus.path.split('/').pop()}</a>`;
+                    const imgComments = await apiKutse('get_image_comments', { pilt_path: manus.path });
+                    if (imgComments.length > 0) {
+                        const imgCommDiv = document.createElement('div');
+                        imgCommDiv.className = 'pildi-kommentaarid';
+                        imgComments.forEach(komm => {
+                            let kommTekst = komm.tekst.replace(/\[([^\]]+)\]\(#postitus-(\d+)\)/g, 
+                                (match, p1, p2) => {
+                                    const targetPost = kõikPostitused.find(p => p.id === parseInt(p2));
+                                    const puuId = targetPost ? targetPost.puu_id : null;
+                                    return `<a href="#postitus-${p2}" onclick="AjaluguHaldur.liiguKirjeni('postitus', ${p2}, ${puuId || 'null'}); return false;">${p1}</a>`;
+                                });
+                            imgCommDiv.innerHTML += `
+                                <div class="kommentaar pildi-kommentaar" id="fail-${komm.id}">
+                                    <img src="${fullPath}" style="width: 50px; height: 50px; float: left; margin-right: 10px;">
+                                    <p>${kommTekst} <small>${new Date(komm.aeg * 1000).toLocaleString()}</small></p>
+                                </div>
+                            `;
+                        });
+                        galerii.appendChild(imgCommDiv);
                     }
+                } else {
+                    failideHtml += `<a href="${fullPath}" target="_blank">${manus.path.split('/').pop()}</a>`;
                 }
-                failideHtml += '</div>' + galerii.outerHTML;
             }
+            failideHtml += '</div>' + galerii.outerHTML;
+        }
 
             const kommentaarid = this.ehitaKommentaarideHierarhia(postitus.kommentaarid || []);
             let kommentaarideHtml = '<div class="postituse-kommentaarid">';
@@ -969,11 +974,11 @@ const PostitusteHaldur = {
     avaPilt(path) {
         const modal = document.getElementById('galerii-modal');
         const pilt = document.getElementById('modal-pilt');
-        pilt.src = path;
+        pilt.src = path; // Path on juba täielik URL
         modal.classList.add('active');
-        this.kuvaPildiKommentaarid(path);
+        this.kuvaPildiKommentaarid(path.split(BASE_URL)[1]); // Saada serverile suhteline tee
 
-        document.getElementById('pildi-kommentaar-nupp').onclick = () => this.lisaPildiKommentaar(path);
+        document.getElementById('pildi-kommentaar-nupp').onclick = () => this.lisaPildiKommentaar(path.split(BASE_URL)[1]);
         modal.onclick = (e) => {
             if (e.target === modal) modal.classList.remove('active');
         };
