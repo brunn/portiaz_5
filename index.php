@@ -134,9 +134,54 @@ if (isset($_GET['action'])) {
 
         case 'delete_puu':
             $id = $_GET['id'] ?? 0;
+            $db = getDatabase();
+        
+            // Hangi kõik postitused, mis on seotud selle puu sõlmega või selle alamõlmedega
+            $postitused = [];
+            $result = $db->query('SELECT id, manused FROM postitused WHERE puu_id = ' . (int)$id);
+            while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+                $postitused[] = $row;
+            }
+            // Kontrolli alamõlmi rekursiivselt
+            $alamõlmed = [$id];
+            $stmt = $db->prepare('SELECT id FROM puu WHERE vanem_id = :vanem_id');
+            $i = 0;
+            while ($i < count($alamõlmed)) {
+                $stmt->bindValue(':vanem_id', $alamõlmed[$i], SQLITE3_INTEGER);
+                $result = $stmt->execute();
+                while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+                    $alamõlmed[] = $row['id'];
+                    $postStmt = $db->prepare('SELECT id, manused FROM postitused WHERE puu_id = :puu_id');
+                    $postStmt->bindValue(':puu_id', $row['id'], SQLITE3_INTEGER);
+                    $postResult = $postStmt->execute();
+                    while ($postRow = $postResult->fetchArray(SQLITE3_ASSOC)) {
+                        $postitused[] = $postRow;
+                    }
+                }
+                $i++;
+            }
+        
+            // Kustuta puu sõlm (postitused ja kommentaarid kustuvad CASCADE abil)
             $stmt = $db->prepare('DELETE FROM puu WHERE id = :id');
             $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
             $stmt->execute();
+        
+            // Kustuta failid ja pildi/faili kommentaarid
+            foreach ($postitused as $postitus) {
+                $manused = json_decode($postitus['manused'] ?? '[]', true);
+                foreach ($manused as $manus) {
+                    $stmt = $db->prepare('DELETE FROM pildi_kommentaarid WHERE pilt_path = :pilt_path');
+                    $stmt->bindValue(':pilt_path', $manus['path'], SQLITE3_TEXT);
+                    $stmt->execute();
+        
+                    // Kustuta füüsiline fail uploads kaustast
+                    $fullPath = __DIR__ . $manus['path'];
+                    if (file_exists($fullPath)) {
+                        unlink($fullPath);
+                    }
+                }
+            }
+        
             echo json_encode(['status' => 'deleted']);
             break;
 
@@ -176,9 +221,33 @@ if (isset($_GET['action'])) {
 
         case 'delete_post':
             $id = $_GET['id'] ?? 0;
+            $db = getDatabase();
+        
+            // Hangi postituse manused enne kustutamist
+            $stmt = $db->prepare('SELECT manused FROM postitused WHERE id = :id');
+            $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+            $result = $stmt->execute();
+            $row = $result->fetchArray(SQLITE3_ASSOC);
+            $manused = $row ? json_decode($row['manused'] ?? '[]', true) : [];
+        
+            // Kustuta postitus (kommentaarid kustuvad CASCADE abil)
             $stmt = $db->prepare('DELETE FROM postitused WHERE id = :id');
             $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
             $stmt->execute();
+        
+            // Kustuta pildi/faili kommentaarid, mis on seotud manustega
+            foreach ($manused as $manus) {
+                $stmt = $db->prepare('DELETE FROM pildi_kommentaarid WHERE pilt_path = :pilt_path');
+                $stmt->bindValue(':pilt_path', $manus['path'], SQLITE3_TEXT);
+                $stmt->execute();
+        
+                // Kustuta füüsiline fail uploads kaustast
+                $fullPath = __DIR__ . $manus['path']; // Näiteks /uploads/time_filename
+                if (file_exists($fullPath)) {
+                    unlink($fullPath);
+                }
+            }
+        
             echo json_encode(['status' => 'deleted']);
             break;
 
@@ -408,7 +477,7 @@ if (isset($_GET['action'])) {
         /*display: list-item; ja display: grid;*/
         .galerii { display: list-item; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
         /*width: 100%;*/
-        .galerii-üksus img { width: auto;height: auto; border-radius: 4px; cursor: pointer; }
+        .galerii-üksus img { width: 50%;height: auto; border-radius: 4px; cursor: pointer; }
         .kommentaari-paan { background: #f0f0f0; padding: 5px; margin-top: 5px; border-radius: 4px; }
         .pesastatud-kommentaarid { margin-left: 20px; }
         footer { background: #1a1a1a; color: white; padding: 10px; position: sticky; bottom: 0; }
@@ -419,7 +488,7 @@ if (isset($_GET['action'])) {
         .postituse-failid { margin-top: 10px; }
         .postituse-failid a { display: block; margin: 5px 0; color: #1a73e8; text-decoration: none; }
         .postituse-kommentaarid { margin-top: 15px; }
-        .pildi-kommentaar {overflow: hidden;margin: 5px 0;background: #f9f9f9;padding: 5px;border-radius: 4px;}
+        .pildi-kommentaar {overflow: hidden;margin: 5px 0;padding: 5px;border-radius: 4px;}
         .vasta-redaktor {margin-left: 20px;margin-top: 5px;}
         .vasta-redaktor textarea {width: 100%;height: 60px;margin-bottom: 5px;}
         .kommentaar { border-top: 1px solid #ddd; position: relative; }
@@ -428,12 +497,17 @@ if (isset($_GET['action'])) {
         .kommentaari-textarea{width: 100%;  padding-bottom: 10px;margin-bottom: 10px;}
         .kommentaari-editor-container {height: 100px;border: 1px solid #ccc;border-radius: 4px;width: 100%;box-sizing: border-box;}
         #pildi-kommentaar-tekst{width: 100%;height: 10%;}
+
+        .modal-kommentaarid .kommentaar {display: flex;align-items: flex-start;margin: 5px 0;}
+        .modal-kommentaarid .kommentaar i {width: 50px;height: 50px;margin-right: 10px;font-size: 30px;line-height: 50px;color: #666;}
+        .modal-kommentaarid .kommentaar div {flex: 1;}
+        #faili-kommentaar-tekst {width: 100%;height: 60px;margin-bottom: 5px;}
         button { padding: 5px 10px; margin: 0 5px; cursor: pointer; background: #1a73e8; color: white; border: none; border-radius: 4px; }
         button:hover { background: #1557b0; }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; }
         .modal.active { display: flex; justify-content: center; align-items: center; }
         .modal-content { max-width: 90%; max-height: 90%; background: white; border-radius: 5px; display: flex; }
-        .modal-image { max-width: 70%; max-height: 100%; object-fit: contain; border-radius: 5px 0 0 5px; }
+        .modal-image { max-width: 70%; max-height: 100%; object-fit: fill; border-radius: 5px 0 0 5px; }
         .modal-kommentaarid { width: 300px; padding: 20px; overflow-y: auto; }
         .ajalugu-kirje {padding: 8px;border-bottom: 1px solid #ddd;cursor: pointer;}
         .ajalugu-kirje:hover {background: #f0f0f0;}
@@ -442,6 +516,18 @@ if (isset($_GET['action'])) {
         .soovitus-item {padding: 5px;cursor: pointer;}
         .soovitus-item:hover, .soovitus-item.aktiivne {background: #ddd;}
         button{padding: 0;margin: 0;cursor: pointer;background: #1a73e8;color: white;border: none;border-radius: 4px;}
+        .faili-kommentaar {overflow: hidden;margin: 5px 0;padding: 5px;border-radius: 4px;}
+        .faili-kommentaar i {color: #0d0d0d;}
+        #faili-kommentaar-tekst {width: 90%;height: 60px;margin-bottom: 5px;}
+        .pildi-kommentaar, .faili-kommentaar {overflow: hidden;margin: 5px 0;padding: 5px;border-radius: 4px;display: flex;align-items: flex-start;}
+        .pildi-kommentaar img, .faili-kommentaar i {width: 50px;height: 50px;margin-right: 10px;}
+        .faili-kommentaar i {font-size: 30px;line-height: 50px;color: #666;}
+        .pildi-kommentaar div, .faili-kommentaar div {flex: 1;overflow: hidden;}
+        .pildi-kommentaar p, .faili-kommentaar p {margin: 0;}
+        .pildi-kommentaar small, .faili-kommentaar small {color: #666;display: block;}
+        .modal-kommentaarid #modal-post-tekst, .modal-kommentaarid #modal-fail-post-tekst {margin-bottom: 15px;padding: 10px;border-radius: 4px;}
+        .modal-kommentaarid #modal-post-tekst p, .modal-kommentaarid #modal-fail-post-tekst p {margin: 0;}
+        .modal-kommentaarid #modal-post-tekst small, .modal-kommentaarid #modal-fail-post-tekst small {color: #666;display: block;}
     </style>
 </head>
 <body>
@@ -474,13 +560,28 @@ if (isset($_GET['action'])) {
         <div class="modal-content">
             <img class="modal-image" id="modal-pilt" src="">
             <div class="modal-kommentaarid">
-                <h3>Pildi kommentaarid</h3>
+                <div id="modal-post-tekst" style="margin-bottom: 15px; padding: 10px;border-radius: 4px;"></div>
                 <div id="pildi-kommentaarid"></div>
                 <textarea id="pildi-kommentaar-tekst" placeholder="Lisa kommentaar..."></textarea>
                 <button id="pildi-kommentaar-nupp">Kommenteeri</button>
             </div>
         </div>
     </div>
+
+    <div class="modal" id="faili-modal">
+        <div class="modal-content" style="flex-direction: column; max-width: 500px;">
+            <div style="padding: 10px; background: #f0f0f0; border-bottom: 1px solid #ccc;">
+                <a id="modal-fail-link" href="" target="_blank" style="text-decoration: none; color: #1a73e8;"></a>
+            </div>
+            <div class="modal-kommentaarid" style="width: 100%; padding: 20px;">
+                <div id="modal-fail-post-tekst" style="margin-bottom: 15px; padding: 10px;border-radius: 4px;"></div>
+                <div id="faili-kommentaarid"></div>
+                <textarea id="faili-kommentaar-tekst" placeholder="Lisa kommentaar..."></textarea>
+                <button id="faili-kommentaar-nupp">Kommenteeri</button>
+            </div>
+        </div>
+    </div>
+
     <script>
  
     const BASE_URL = '<?php echo rtrim(dirname($_SERVER['PHP_SELF']), '/'); ?>';
@@ -953,86 +1054,226 @@ const PostitusteHaldur = {
         }
     },
 
-    async kuvaPostitused() {
-        const konteiner = document.getElementById('postitused');
-        konteiner.innerHTML = '';
-        if (!Andmed.valitudSõlm) return;
+    async avaFail(path, fileName) {
+        const modal = document.getElementById('faili-modal');
+        const link = document.getElementById('modal-fail-link');
+        const postTekstDiv = document.getElementById('modal-fail-post-tekst');
+        link.href = path;
+        link.textContent = `Vaata või lae alla: ${fileName}`;
+        modal.classList.add('active');
 
-        const postitused = await apiKutse('get_postitused', { puu_id: Andmed.valitudSõlm.id });
-        const kõikPostitused = await apiKutse('get_postitused'); // Fetch all posts for link resolution
-        for (const postitus of postitused) {
-            const div = document.createElement('div');
-            div.className = 'postitus';
-            div.id = `postitus-${postitus.id}`;
+        const relativePath = path.split(BASE_URL)[1];
+        const kõikPostitused = await apiKutse('get_postitused');
+        const postitus = kõikPostitused.find(p => {
+            const manused = JSON.parse(p.manused || '[]');
+            return manused.some(m => m.path === relativePath);
+        });
 
+        if (postitus) {
             let tekst = postitus.tekst.replace(/\[([^\]]+)\]\(#postitus-(\d+)\)/g, 
                 (match, p1, p2) => {
                     const targetPost = kõikPostitused.find(p => p.id === parseInt(p2));
                     const puuId = targetPost ? targetPost.puu_id : null;
                     return `<a href="#postitus-${p2}" onclick="AjaluguHaldur.liiguKirjeni('postitus', ${p2}, ${puuId || 'null'}); return false;">${p1}</a>`;
                 });
-
-            const manused = JSON.parse(postitus.manused || '[]');
-            let failideHtml = '';
-            if (manused.length > 0) {
-            failideHtml = '<div class="postituse-failid">';
-            const galerii = document.createElement('div');
-            galerii.className = 'galerii';
-            for (const manus of manused) {
-                const fullPath = `${BASE_URL}${manus.path}`; // Lisa baas-URL
-                if (manus.type.startsWith('image/')) {
-                    const galeriiÜksus = document.createElement('div');
-                    galeriiÜksus.className = 'galerii-üksus';
-                    galeriiÜksus.innerHTML = `<img src="${fullPath}" alt="${manus.path.split('/').pop()}" onclick="PostitusteHaldur.avaPilt('${fullPath}')">`;
-                    galerii.appendChild(galeriiÜksus);
-
-                    const imgComments = await apiKutse('get_image_comments', { pilt_path: manus.path });
-                    if (imgComments.length > 0) {
-                        const imgCommDiv = document.createElement('div');
-                        imgCommDiv.className = 'pildi-kommentaarid';
-                        imgComments.forEach(komm => {
-                            let kommTekst = komm.tekst.replace(/\[([^\]]+)\]\(#postitus-(\d+)\)/g, 
-                                (match, p1, p2) => {
-                                    const targetPost = kõikPostitused.find(p => p.id === parseInt(p2));
-                                    const puuId = targetPost ? targetPost.puu_id : null;
-                                    return `<a href="#postitus-${p2}" onclick="AjaluguHaldur.liiguKirjeni('postitus', ${p2}, ${puuId || 'null'}); return false;">${p1}</a>`;
-                                });
-                            imgCommDiv.innerHTML += `
-                                <div class="kommentaar pildi-kommentaar" id="fail-${komm.id}">
-                                    <img src="${fullPath}" style="width: 50px; height: 50px; float: left; margin-right: 10px;">
-                                    <p>${kommTekst} <small>${new Date(komm.aeg * 1000).toLocaleString()}</small></p>
-                                </div>
-                            `;
-                        });
-                        galerii.appendChild(imgCommDiv);
-                    }
-                } else {
-                    failideHtml += `<a href="${fullPath}" target="_blank">${manus.path.split('/').pop()}</a>`;
-                }
-            }
-            failideHtml += '</div>' + galerii.outerHTML;
+            postTekstDiv.innerHTML = `${tekst} <small>${new Date(postitus.aeg * 1000).toLocaleString()}</small>`;
+        } else {
+            postTekstDiv.innerHTML = '<p>Postitust ei leitud.</p>';
         }
 
-            const kommentaarid = this.ehitaKommentaarideHierarhia(postitus.kommentaarid || []);
-            let kommentaarideHtml = '<div class="postituse-kommentaarid">';
-            kommentaarideHtml += this.renderKommentaarid(kommentaarid, postitus.id, kõikPostitused);
-            kommentaarideHtml += '</div>';
+        this.kuvaFailiKommentaarid(relativePath);
+        document.getElementById('faili-kommentaar-nupp').onclick = () => this.lisaFailiKommentaar(relativePath);
+        modal.onclick = (e) => {
+            if (e.target === modal) modal.classList.remove('active');
+        };
+    },
 
+    async kuvaFailiKommentaarid(path) {
+        const kommentaarid = await apiKutse('get_image_comments', { pilt_path: path });
+        const kõikPostitused = await apiKutse('get_postitused');
+        const konteiner = document.getElementById('faili-kommentaarid');
+        konteiner.innerHTML = '';
+        kommentaarid.forEach(komm => {
+            let tekst = komm.tekst.replace(/\[([^\]]+)\]\(#postitus-(\d+)\)/g, 
+                (match, p1, p2) => {
+                    const targetPost = kõikPostitused.find(p => p.id === parseInt(p2));
+                    const puuId = targetPost ? targetPost.puu_id : null;
+                    return `<a href="#postitus-${p2}" onclick="AjaluguHaldur.liiguKirjeni('postitus', ${p2}, ${puuId || 'null'}); return false;">${p1}</a>`;
+                });
+            const div = document.createElement('div');
+            div.className = 'kommentaar';
+            div.dataset.id = komm.id;
             div.innerHTML = `
-                <p>${tekst} <small>${new Date(postitus.aeg * 1000).toLocaleString()}</small>
-                <button onclick="PostitusteHaldur.toggleMuudaPostitus(${postitus.id}, '${tekst.replace(/'/g, "\\'")}')">Muuda</button></p>
-                ${failideHtml}
-                ${kommentaarideHtml}
-                <div class="kommentaari-redaktor" data-postitus-id="${postitus.id}">
-                    <textarea class="kommentaari-textarea" placeholder="Lisa kommentaar...."></textarea>
-                    <button onclick="PostitusteHaldur.lisaKommentaar(${postitus.id})">Kommenteeri</button>
-                    <button onclick="PostitusteHaldur.kustutaPostitus(${postitus.id})">Kustuta</button>
+                <div style="overflow: hidden;">
+                    <p>${tekst} <small>${new Date(komm.aeg * 1000).toLocaleString()}</small>
+                    <button onclick="PostitusteHaldur.toggleMuudaFailiKommentaar(${komm.id}, '${path}')">Muuda</button>
+                    <button onclick="PostitusteHaldur.kustutaFailiKommentaar(${komm.id}, '${path}')">Kustuta</button></p>
                 </div>
             `;
             konteiner.appendChild(div);
-        }
-        this.lisaSoovitusKuulajad(konteiner);
+        });
     },
+
+    async lisaFailiKommentaar(path) {
+        const tekst = document.getElementById('faili-kommentaar-tekst').value;
+        if (!tekst) return alert('Sisesta kommentaar!');
+        await apiKutse('add_image_comment', { pilt_path: path, tekst: encodeURIComponent(tekst) });
+        document.getElementById('faili-kommentaar-tekst').value = '';
+        this.kuvaFailiKommentaarid(path);
+    },
+
+    async kustutaFailiKommentaar(id, path) {
+        if (!confirm('Kas kustutada faili kommentaar?')) return;
+        await apiKutse('delete_image_comment', { id });
+        this.kuvaFailiKommentaarid(path);
+    },
+
+    async toggleMuudaFailiKommentaar(id, path) {
+        const konteiner = document.getElementById('faili-kommentaarid');
+        const kommDiv = konteiner.querySelector(`[data-id="${id}"]`);
+        if (!kommDiv) return;
+
+        const p = kommDiv.querySelector('p');
+        const origTekst = p.childNodes[0].textContent.trim(); // Get only the text node before <small>
+        const origAeg = p.querySelector('small').textContent;
+        if (p.querySelector('textarea')) return;
+
+        const textarea = document.createElement('textarea');
+        textarea.id = `kommentaar-editor-${id}`;
+        textarea.className = 'kommentaari-editor-container';
+        textarea.value = origTekst;
+        p.innerHTML = '';
+        p.appendChild(textarea);
+
+        const saveBtn = document.createElement('button');
+        saveBtn.textContent = 'Salvesta';
+        saveBtn.onclick = () => this.salvestaFailiKommentaarMuudatus(id, path);
+        p.appendChild(saveBtn);
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = 'Tühista';
+        cancelBtn.onclick = () => {
+            p.innerHTML = `${origTekst} <small>${origAeg}</small>
+                <button onclick="PostitusteHaldur.toggleMuudaFailiKommentaar(${id}, '${path}')">Muuda</button>
+                <button onclick="PostitusteHaldur.kustutaFailiKommentaar(${id}, '${path}')">Kustuta</button>`;
+        };
+        p.appendChild(cancelBtn);
+    },
+
+    async salvestaFailiKommentaarMuudatus(id, path) {
+        const konteiner = document.getElementById('faili-kommentaarid');
+        const kommDiv = konteiner.querySelector(`[data-id="${id}"]`);
+        const textarea = kommDiv.querySelector('textarea');
+        const uusTekst = textarea.value;
+        await apiKutse('update_image_comment', { id, tekst: encodeURIComponent(uusTekst) });
+        this.kuvaFailiKommentaarid(path);
+    },
+
+    async kuvaPostitused() {
+    const konteiner = document.getElementById('postitused');
+    konteiner.innerHTML = '';
+    if (!Andmed.valitudSõlm) return;
+
+    const postitused = await apiKutse('get_postitused', { puu_id: Andmed.valitudSõlm.id });
+    const kõikPostitused = await apiKutse('get_postitused');
+
+    for (const postitus of postitused) {
+        const div = document.createElement('div');
+        div.className = 'postitus';
+        div.id = `postitus-${postitus.id}`;
+
+        let tekst = postitus.tekst.replace(/\[([^\]]+)\]\(#postitus-(\d+)\)/g, 
+            (match, p1, p2) => {
+                const targetPost = kõikPostitused.find(p => p.id === parseInt(p2));
+                const puuId = targetPost ? targetPost.puu_id : null;
+                return `<a href="#postitus-${p2}" onclick="AjaluguHaldur.liiguKirjeni('postitus', ${p2}, ${puuId || 'null'}); return false;">${p1}</a>`;
+            });
+
+        const manused = JSON.parse(postitus.manused || '[]');
+        let failideHtml = '<div class="postituse-failid">';
+        const galerii = document.createElement('div');
+        galerii.className = 'galerii';
+
+        for (const manus of manused) {
+            const fullPath = `${BASE_URL}${manus.path}`;
+            const fileName = manus.path.split('/').pop();
+
+            if (manus.type.startsWith('image/')) {
+                const galeriiÜksus = document.createElement('div');
+                galeriiÜksus.className = 'galerii-üksus';
+                galeriiÜksus.innerHTML = `<img src="${fullPath}" alt="${fileName}" onclick="PostitusteHaldur.avaPilt('${fullPath}')">`;
+                galerii.appendChild(galeriiÜksus);
+
+                const imgComments = await apiKutse('get_image_comments', { pilt_path: manus.path });
+                if (imgComments.length > 0) {
+                    const imgCommDiv = document.createElement('div');
+                    imgCommDiv.className = 'pildi-kommentaarid';
+                    imgComments.forEach(komm => {
+                        let kommTekst = komm.tekst.replace(/\[([^\]]+)\]\(#postitus-(\d+)\)/g, 
+                            (match, p1, p2) => {
+                                const targetPost = kõikPostitused.find(p => p.id === parseInt(p2));
+                                const puuId = targetPost ? targetPost.puu_id : null;
+                                return `<a href="#postitus-${p2}" onclick="AjaluguHaldur.liiguKirjeni('postitus', ${p2}, ${puuId || 'null'}); return false;">${p1}</a>`;
+                            });
+                        imgCommDiv.innerHTML += `
+                            <div class="kommentaar pildi-kommentaar" id="fail-${komm.id}">
+                                <img src="${fullPath}" style="width: 50px; height: 50px; float: left; margin-right: 10px;">
+                                <div style="overflow: hidden;">
+                                    <p>${kommTekst}</p>
+                                    <small>${new Date(komm.aeg * 1000).toLocaleString()}</small>
+                                </div>
+                            </div>`;
+                    });
+                    galerii.appendChild(imgCommDiv);
+                }
+            } else {
+                failideHtml += `<a href="#" onclick="PostitusteHaldur.avaFail('${fullPath}', '${fileName}'); return false;">${fileName}</a>`;
+                const fileComments = await apiKutse('get_image_comments', { pilt_path: manus.path });
+                if (fileComments.length > 0) {
+                    const fileCommDiv = document.createElement('div');
+                    fileCommDiv.className = 'faili-kommentaarid';
+                    fileComments.forEach(komm => {
+                        let kommTekst = komm.tekst.replace(/\[([^\]]+)\]\(#postitus-(\d+)\)/g, 
+                            (match, p1, p2) => {
+                                const targetPost = kõikPostitused.find(p => p.id === parseInt(p2));
+                                const puuId = targetPost ? targetPost.puu_id : null;
+                                return `<a href="#postitus-${p2}" onclick="AjaluguHaldur.liiguKirjeni('postitus', ${p2}, ${puuId || 'null'}); return false;">${p1}</a>`;
+                            });
+                        fileCommDiv.innerHTML += `
+                            <div class="kommentaar faili-kommentaar" id="fail-${komm.id}">
+                                <i class="fas fa-file" style="margin-top: -7px;width: 50px; height: 50px; float: left; margin-right: -17px; font-size: 30px; line-height: 50px;"></i>
+                                <div style="overflow: hidden;">
+                                    <p>${kommTekst}</p>
+                                    <small>${new Date(komm.aeg * 1000).toLocaleString()}</small>
+                                </div>
+                            </div>`;
+                    });
+                    failideHtml += fileCommDiv.outerHTML;
+                }
+            }
+        }
+        failideHtml += '</div>' + (galerii.children.length > 0 ? galerii.outerHTML : '');
+
+        const kommentaarid = this.ehitaKommentaarideHierarhia(postitus.kommentaarid || []);
+        let kommentaarideHtml = '<div class="postituse-kommentaarid">';
+        kommentaarideHtml += this.renderKommentaarid(kommentaarid, postitus.id, kõikPostitused);
+        kommentaarideHtml += '</div>';
+
+        div.innerHTML = `
+            <p>${tekst} <small>${new Date(postitus.aeg * 1000).toLocaleString()}</small>
+            <button onclick="PostitusteHaldur.toggleMuudaPostitus(${postitus.id}, '${tekst.replace(/'/g, "\\'")}')">Muuda</button></p>
+            ${failideHtml}
+            ${kommentaarideHtml}
+            <div class="kommentaari-redaktor" data-postitus-id="${postitus.id}">
+                <textarea class="kommentaari-textarea" placeholder="Lisa kommentaar...."></textarea>
+                <button onclick="PostitusteHaldur.lisaKommentaar(${postitus.id})">Kommenteeri</button>
+                <button onclick="PostitusteHaldur.kustutaPostitus(${postitus.id})">Kustuta</button>
+            </div>
+        `;
+        konteiner.appendChild(div);
+    }
+    this.lisaSoovitusKuulajad(konteiner);
+},
 
     ehitaKommentaarideHierarhia(kommentaarid) {
         const idKaart = new Map(kommentaarid.map(k => [k.id, { ...k, lapsed: [] }]));
@@ -1114,14 +1355,34 @@ const PostitusteHaldur = {
         this.kuvaPostitused();
     },
 
-    avaPilt(path) {
+    async avaPilt(path) {
         const modal = document.getElementById('galerii-modal');
         const pilt = document.getElementById('modal-pilt');
-        pilt.src = path; // Path on juba täielik URL
+        const postTekstDiv = document.getElementById('modal-post-tekst');
+        pilt.src = path;
         modal.classList.add('active');
-        this.kuvaPildiKommentaarid(path.split(BASE_URL)[1]); // Saada serverile suhteline tee
 
-        document.getElementById('pildi-kommentaar-nupp').onclick = () => this.lisaPildiKommentaar(path.split(BASE_URL)[1]);
+        const relativePath = path.split(BASE_URL)[1];
+        const kõikPostitused = await apiKutse('get_postitused');
+        const postitus = kõikPostitused.find(p => {
+            const manused = JSON.parse(p.manused || '[]');
+            return manused.some(m => m.path === relativePath);
+        });
+
+        if (postitus) {
+            let tekst = postitus.tekst.replace(/\[([^\]]+)\]\(#postitus-(\d+)\)/g, 
+                (match, p1, p2) => {
+                    const targetPost = kõikPostitused.find(p => p.id === parseInt(p2));
+                    const puuId = targetPost ? targetPost.puu_id : null;
+                    return `<a href="#postitus-${p2}" onclick="AjaluguHaldur.liiguKirjeni('postitus', ${p2}, ${puuId || 'null'}); return false;">${p1}</a>`;
+                });
+            postTekstDiv.innerHTML = `${tekst} <small>${new Date(postitus.aeg * 1000).toLocaleString()}</small>`;
+        } else {
+            postTekstDiv.innerHTML = '<p>Postitust ei leitud.</p>';
+        }
+
+        this.kuvaPildiKommentaarid(relativePath);
+        document.getElementById('pildi-kommentaar-nupp').onclick = () => this.lisaPildiKommentaar(relativePath);
         modal.onclick = (e) => {
             if (e.target === modal) modal.classList.remove('active');
         };
@@ -1141,11 +1402,13 @@ const PostitusteHaldur = {
                 });
             const div = document.createElement('div');
             div.className = 'kommentaar';
-            div.dataset.id = komm.id; // Add data-id for easier targeting
+            div.dataset.id = komm.id;
             div.innerHTML = `
-                <p>${tekst} <small>${new Date(komm.aeg * 1000).toLocaleString()}</small>
-                <button onclick="PostitusteHaldur.toggleMuudaPildiKommentaar(${komm.id}, '${path}')">Muuda</button>
-                <button onclick="PostitusteHaldur.kustutaPildiKommentaar(${komm.id}, '${path}')">Kustuta</button></p>
+                <div style="overflow: hidden;">
+                    <p>${tekst} <small>${new Date(komm.aeg * 1000).toLocaleString()}</small>
+                    <button onclick="PostitusteHaldur.toggleMuudaPildiKommentaar(${komm.id}, '${path}')">Muuda</button>
+                    <button onclick="PostitusteHaldur.kustutaPildiKommentaar(${komm.id}, '${path}')">Kustuta</button></p>
+                </div>
             `;
             konteiner.appendChild(div);
         });
@@ -1170,16 +1433,26 @@ const PostitusteHaldur = {
         const p = postDiv.querySelector('p');
         if (p.querySelector('textarea')) return;
 
+        const origTekst = tekst.split(' <small>')[0]; // Original text without timestamp
         const textarea = document.createElement('textarea');
-        textarea.id = `kommentaar-editor-${id}`; // Lisa unikaalne ID
-        textarea.className = 'kommentaari-editor-container'; // Lisa klass stiilide jaoks
-        textarea.value = tekst.split(' <small>')[0]; // Remove timestamp
+        textarea.id = `kommentaar-editor-${id}`;
+        textarea.className = 'kommentaari-editor-container';
+        textarea.value = origTekst;
         p.innerHTML = '';
         p.appendChild(textarea);
+
         const saveBtn = document.createElement('button');
         saveBtn.textContent = 'Salvesta';
         saveBtn.onclick = () => this.salvestaPostitusMuudatus(id);
         p.appendChild(saveBtn);
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = 'Tühista';
+        cancelBtn.onclick = () => {
+            p.innerHTML = `${origTekst} <small>${new Date(postDiv.querySelector('small')?.textContent || '').toLocaleString()}</small>
+                <button onclick="PostitusteHaldur.toggleMuudaPostitus(${id}, '${tekst.replace(/'/g, "\\'")}')">Muuda</button>`;
+        };
+        p.appendChild(cancelBtn);
     },
 
     async salvestaPostitusMuudatus(id) {
@@ -1193,19 +1466,31 @@ const PostitusteHaldur = {
     async toggleMuudaKommentaar(id) {
         const kommDiv = document.getElementById(`kommentaar-${id}`);
         const p = kommDiv.querySelector('p');
-        const origTekst = p.childNodes[0].textContent.trim(); // Get only the text before <small> and buttons
+        const origTekst = p.childNodes[0].textContent.trim(); // Original text
+        const origAeg = p.querySelector('small').textContent; // Original timestamp
         if (p.querySelector('textarea')) return;
 
         const textarea = document.createElement('textarea');
-        textarea.id = `kommentaar-editor-${id}`; // Lisa unikaalne ID
-        textarea.className = 'kommentaari-editor-container'; // Lisa klass stiilide jaoks
+        textarea.id = `kommentaar-editor-${id}`;
+        textarea.className = 'kommentaari-editor-container';
         textarea.value = origTekst;
         p.innerHTML = '';
         p.appendChild(textarea);
+
         const saveBtn = document.createElement('button');
         saveBtn.textContent = 'Salvesta';
         saveBtn.onclick = () => this.salvestaKommentaarMuudatus(id);
         p.appendChild(saveBtn);
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = 'Tühista';
+        cancelBtn.onclick = () => {
+            p.innerHTML = `${origTekst} <small>${origAeg}</small>
+                <button onclick="PostitusteHaldur.toggleMuudaKommentaar(${id})">Muuda</button>
+                <button onclick="PostitusteHaldur.toggleVasta(${id}, ${kommDiv.closest('.postitus').id.split('-')[1]})">Vasta</button>
+                <button onclick="PostitusteHaldur.kustutaKommentaar(${id})">Kustuta</button>`;
+        };
+        p.appendChild(cancelBtn);
     },
 
     async salvestaKommentaarMuudatus(id) {
@@ -1222,19 +1507,30 @@ const PostitusteHaldur = {
         if (!kommDiv) return;
 
         const p = kommDiv.querySelector('p');
-        const origTekst = p.childNodes[0].textContent.trim(); // Get only the text before <small> and buttons
+        const origTekst = p.childNodes[0].textContent.trim(); // Get only the text node before <small>
+        const origAeg = p.querySelector('small').textContent;
         if (p.querySelector('textarea')) return;
 
         const textarea = document.createElement('textarea');
-        textarea.id = `kommentaar-editor-${id}`; // Lisa unikaalne ID
-        textarea.className = 'kommentaari-editor-container'; // Lisa klass stiilide jaoks
+        textarea.id = `kommentaar-editor-${id}`;
+        textarea.className = 'kommentaari-editor-container';
         textarea.value = origTekst;
         p.innerHTML = '';
         p.appendChild(textarea);
+
         const saveBtn = document.createElement('button');
         saveBtn.textContent = 'Salvesta';
         saveBtn.onclick = () => this.salvestaPildiKommentaarMuudatus(id, path);
         p.appendChild(saveBtn);
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = 'Tühista';
+        cancelBtn.onclick = () => {
+            p.innerHTML = `${origTekst} <small>${origAeg}</small>
+                <button onclick="PostitusteHaldur.toggleMuudaPildiKommentaar(${id}, '${path}')">Muuda</button>
+                <button onclick="PostitusteHaldur.kustutaPildiKommentaar(${id}, '${path}')">Kustuta</button>`;
+        };
+        p.appendChild(cancelBtn);
     },
 
     async salvestaPildiKommentaarMuudatus(id, path) {
