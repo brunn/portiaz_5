@@ -16,7 +16,7 @@ function getDatabase() {
         die(json_encode(['status' => 'error', 'message' => 'Database directory not writable']));
     }
     $db = new SQLite3($dbPath);
-    $db->exec('CREATE TABLE IF NOT EXISTS puu (
+    $db->exec('CREATE TABLE IF NOT EXISTS puu (f
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nimi TEXT NOT NULL,
         vanem_id INTEGER,
@@ -240,46 +240,42 @@ if (isset($_GET['action'])) {
             $query = strtolower($_GET['query'] ?? '');
             $data = [];
             $uniqueIds = [];
+        
 
             // Otsi puust
             $result = $db->query('SELECT * FROM puu');
             while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
                 if (stripos($row['nimi'], $query) !== false && !in_array($row['id'], $uniqueIds)) {
-                    $data[] = $row;
+                    $data[] = ['type' => 'puu', 'id' => $row['id'], 'nimi' => $row['nimi'], 'puu_id' => $row['id']];
                     $uniqueIds[] = $row['id'];
                 }
             }
-
+        
             // Otsi postitustest
             $result = $db->query('SELECT * FROM postitused');
             while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
                 if (stripos($row['tekst'], $query) !== false && !in_array($row['id'], $uniqueIds)) {
-                    $data[] = $row;
+                    $data[] = ['type' => 'postitus', 'id' => $row['id'], 'tekst' => $row['tekst'], 'puu_id' => $row['puu_id']];
                     $uniqueIds[] = $row['id'];
                 }
                 $manused = json_decode($row['manused'] ?? '[]', true);
                 foreach ($manused as $manus) {
                     if (stripos($manus['path'], $query) !== false && !in_array($row['id'], $uniqueIds)) {
-                        $data[] = $row;
+                        $data[] = ['type' => 'postitus', 'id' => $row['id'], 'tekst' => $row['tekst'], 'puu_id' => $row['puu_id']];
                         $uniqueIds[] = $row['id'];
                     }
                 }
             }
-
+        
             // Otsi kommentaaridest
-            $result = $db->query('SELECT * FROM kommentaarid');
+            $result = $db->query('SELECT k.*, p.puu_id FROM kommentaarid k JOIN postitused p ON k.postitus_id = p.id');
             while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
                 if (stripos($row['tekst'], $query) !== false && !in_array($row['postitus_id'], $uniqueIds)) {
-                    $post_stmt = $db->prepare('SELECT * FROM postitused WHERE id = :id');
-                    $post_stmt->bindValue(':id', $row['postitus_id'], SQLITE3_INTEGER);
-                    $post_result = $post_stmt->execute();
-                    if ($post_row = $post_result->fetchArray(SQLITE3_ASSOC)) {
-                        $data[] = $post_row;
-                        $uniqueIds[] = $post_row['id'];
-                    }
+                    $data[] = ['type' => 'kommentaar', 'id' => $row['id'], 'tekst' => $row['tekst'], 'puu_id' => $row['puu_id']];
+                    $uniqueIds[] = $row['postitus_id'];
                 }
             }
-
+        
             // Otsi pildi kommentaaridest
             $result = $db->query('SELECT * FROM pildi_kommentaarid');
             while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
@@ -289,13 +285,13 @@ if (isset($_GET['action'])) {
                     $post_result = $post_stmt->execute();
                     if ($post_row = $post_result->fetchArray(SQLITE3_ASSOC)) {
                         if (!in_array($post_row['id'], $uniqueIds)) {
-                            $data[] = $post_row;
+                            $data[] = ['type' => 'pildi_kommentaar', 'id' => $row['id'], 'tekst' => $row['tekst'], 'puu_id' => $post_row['puu_id']];
                             $uniqueIds[] = $post_row['id'];
                         }
                     }
                 }
             }
-
+        
             echo json_encode($data);
             break;
         case 'get_history':
@@ -739,12 +735,29 @@ const PuuHaldur = {
         PostitusteHaldur.kuvaPostitused();
     },
 
-    valiSõlm(id) {
-        const sõlm = this.findNode(Andmed.puu, id);
+    //Sõlme valimine
+    valiSõlm(puuId, type, id) {
+        const sõlm = this.findNode(Andmed.puu, puuId);
         if (sõlm) {
             Andmed.valitudSõlm = sõlm;
             this.kuvaPostitamisLeht();
             document.getElementById('otsingu-tulemused').innerHTML = '';
+            // Kui on kommentaar või pildi_kommentaar, liigu konkreetse kirje juurde
+            if (type === 'kommentaar' || type === 'pildi_kommentaar') {
+                setTimeout(() => {
+                    const element = document.getElementById(`${type === 'kommentaar' ? 'kommentaar' : 'fail'}-${id}`);
+                    if (element) {
+                        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 500); // Ootame, kuni postitused on laetud
+            } else if (type === 'postitus') {
+                setTimeout(() => {
+                    const element = document.getElementById(`postitus-${id}`);
+                    if (element) {
+                        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 500);
+            }
         }
     },
 
@@ -1269,10 +1282,11 @@ document.getElementById('otsing').addEventListener('input', async (e) => {
     }
     const data = await apiKutse('search', { query: encodeURIComponent(query) });
     tulemused.innerHTML = data.map(t => `
-        <div class="otsingu-tulemus" onclick="PuuHaldur.valiSõlm(${t.id})">${t.nimi || t.tekst}</div>
+        <div class="otsingu-tulemus" data-type="${t.type}" data-id="${t.id}" data-puu-id="${t.puu_id}" onclick="PuuHaldur.valiSõlm(${t.puu_id}, '${t.type}', ${t.id})">${t.nimi || t.tekst}</div>
     `).join('');
 });
 
+//Klahvi navigatsioon
 document.addEventListener('keydown', (e) => {
     const tulemused = document.querySelectorAll('.otsingu-tulemus');
     if (!tulemused.length) return;
@@ -1291,7 +1305,8 @@ document.addEventListener('keydown', (e) => {
         tulemused[indeks].classList.add('active');
     } else if (e.key === 'Enter' && indeks >= 0) {
         e.preventDefault();
-        tulemused[indeks].click();
+        const valitud = tulemused[indeks];
+        PuuHaldur.valiSõlm(parseInt(valitud.dataset.puuId), valitud.dataset.type, parseInt(valitud.dataset.id));
     } else if (e.key === 'Escape') {
         document.getElementById('otsingu-tulemused').innerHTML = '';
     }
