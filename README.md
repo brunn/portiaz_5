@@ -17,10 +17,10 @@ Kaustade seaded:
 ![Kirjeldus](doc/ajaloo_vaade.png)
 Märkmik lokaalseks kasutamiseks
 # Pildi kommentaaride vaade
-![Kirjeldus](pildivaade.png)
+![Kirjeldus](doc/pildivaade.png)
 # Postituse vaade 
-![Kirjeldus](postituse_vaade.png)
+![Kirjeldus](doc/postituse_vaade.png)
 # Otsingu vaade 
-![Kirjeldus](otsingu_vaade.png)
+![Kirjeldus](doc/otsingu_vaade.png)
 # Postituse redigeerimise vaade 
-![Kirjeldus](postituse_redigeerimise_vaade.png)
+![Kirjeldus](doc/postituse_redigeerimise_vaade.png)
