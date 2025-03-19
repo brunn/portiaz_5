@@ -298,7 +298,6 @@ if (isset($_GET['action'])) {
 
             echo json_encode($data);
             break;
-
         case 'get_history':
             $limit = $_GET['limit'] ?? 10;
             $history = [];
@@ -340,6 +339,45 @@ if (isset($_GET['action'])) {
             }
             echo json_encode($titles);
             break;
+        case 'update_post':
+            $id = $_GET['id'] ?? 0;
+            $tekst = urldecode($_GET['tekst'] ?? '');
+            $aeg = time();
+            $db = getDatabase();
+            $stmt = $db->prepare('UPDATE postitused SET tekst = :tekst, aeg = :aeg WHERE id = :id');
+            $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+            $stmt->bindValue(':tekst', $tekst, SQLITE3_TEXT);
+            $stmt->bindValue(':aeg', $aeg, SQLITE3_INTEGER);
+            $stmt->execute();
+            echo json_encode(['status' => 'updated']);
+            break;
+        
+        case 'update_comment':
+            $id = $_GET['id'] ?? 0;
+            $tekst = urldecode($_GET['tekst'] ?? '');
+            $aeg = time();
+            $db = getDatabase();
+            $stmt = $db->prepare('UPDATE kommentaarid SET tekst = :tekst, aeg = :aeg WHERE id = :id');
+            $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+            $stmt->bindValue(':tekst', $tekst, SQLITE3_TEXT);
+            $stmt->bindValue(':aeg', $aeg, SQLITE3_INTEGER);
+            $stmt->execute();
+            echo json_encode(['status' => 'updated']);
+            break;
+        
+        case 'update_image_comment':
+            $id = $_GET['id'] ?? 0;
+            $tekst = urldecode($_GET['tekst'] ?? '');
+            $aeg = time();
+            $db = getDatabase();
+            $stmt = $db->prepare('UPDATE pildi_kommentaarid SET tekst = :tekst, aeg = :aeg WHERE id = :id');
+            $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+            $stmt->bindValue(':tekst', $tekst, SQLITE3_TEXT);
+            $stmt->bindValue(':aeg', $aeg, SQLITE3_INTEGER);
+            $stmt->execute();
+            echo json_encode(['status' => 'updated']);
+            break;
+            
         default:
             echo json_encode(['status' => 'error', 'message' => 'Unknown action']);
             break;
@@ -432,7 +470,7 @@ if (isset($_GET['action'])) {
         </div>
     </div>
     <footer>
-        <button onclick="PuuHaldur.lisaOks()">Lisa oks</button>
+        <button onclick="PuuHaldur.LISA_UUS_OKS()">Lisa oks</button>
         <button onclick="PuuHaldur.lisaLeht()">Lisa leht</button>
         <button onclick="VikiHaldur.lisaVikiLeht()">Lisa viki leht</button>
         <button onclick="VikiHaldur.lisaSektsioon()">Lisa sektsioon</button>
@@ -452,16 +490,15 @@ if (isset($_GET['action'])) {
             </div>
         </div>
     </div>
-
     <script>
  
     const BASE_URL = '<?php echo rtrim(dirname($_SERVER['PHP_SELF']), '/'); ?>';
 
-
  // Andmestruktuur
-const Andmed = {
+ const Andmed = {
     puu: [],
-    valitudSõlm: null
+    valitudSõlm: null,
+    laienenudSõlmed: new Set() // Jälgime laienenud sõlmi
 };
 
 // Üldine API kutse funktsioon
@@ -510,6 +547,20 @@ const PuuHaldur = {
         return puu;
     },
 
+    laiendaJaVali(e, sõlm, element) {
+        e.stopPropagation();
+        if (sõlm.lapsed && sõlm.lapsed.length > 0) {
+            if (Andmed.laienenudSõlmed.has(sõlm.id)) {
+                Andmed.laienenudSõlmed.delete(sõlm.id);
+            } else {
+                Andmed.laienenudSõlmed.add(sõlm.id);
+            }
+        }
+        Andmed.valitudSõlm = sõlm;
+        this.kuvaPostitamisLeht();
+        this.kuvaPuu(); // Värskenda puu, säilitades oleku
+    },
+
     kuvaPuu(andmed = Andmed.puu, vanem = document.getElementById('puu-konteiner'), tase = 0) {
         vanem.innerHTML = '';
         if (!andmed || andmed.length === 0) {
@@ -530,32 +581,25 @@ const PuuHaldur = {
 
             vanem.appendChild(div);
             if (sõlm.lapsed && sõlm.lapsed.length > 0) {
-                this.kuvaPuu(sõlm.lapsed, alamlehed, tase + 1);
+                // Säilita laienemise olek
+                if (Andmed.laienenudSõlmed.has(sõlm.id)) {
+                    div.classList.add('laiendatud');
+                    this.kuvaPuu(sõlm.lapsed, alamlehed, tase + 1);
+                }
             }
         });
     },
 
-    laiendaJaVali(e, sõlm, element) {
-        e.stopPropagation();
-        if (sõlm.on_oks && sõlm.lapsed.length > 0) {
-            element.classList.toggle('laiendatud');
-        }
-        Andmed.valitudSõlm = sõlm;
-        this.kuvaPostitamisLeht();
-    },
-
     näitaKontekstimenüüd(e, sõlm) {
         e.preventDefault();
-        // Kui vasakklõps on juba sõlme valinud, kasutame seda; vastasel juhul paremklõpsu sõlme
         const valitudSõlm = Andmed.valitudSõlm || sõlm;
-        console.log('Valitud sõlm kontekstimenüüs:', valitudSõlm); // Logi kontrolliks
         const menüü = document.getElementById('kontekstimenüü');
         const menüüSisu = document.getElementById('kontekstimenüü-sisu');
         menüüSisu.innerHTML = '';
 
         const opts = [
             { text: 'Lisa oks', action: () => this.lisaOks() },
-            { text: 'Lisa leht', action: () => this.lisaLeht() },
+            { text: 'Lisa leht', action: () => this.lisaLeht() }, // Lubame alati lehe lisamist
             { text: valitudSõlm.on_oks ? 'Kustuta oks' : 'Kustuta leht', action: () => this.kustutaSõlm() },
             { text: 'Nimeta ümber oks', action: () => this.nimetaOksÜmber(), disabled: valitudSõlm.on_oks !== 1 },
             { text: 'Nimeta ümber leht', action: () => this.nimetaLehtÜmber(), disabled: valitudSõlm.on_oks !== 0 }
@@ -566,8 +610,9 @@ const PuuHaldur = {
             li.textContent = opt.text;
             if (!opt.disabled) {
                 li.onclick = () => {
-                    Andmed.valitudSõlm = valitudSõlm; // Veendu, et valitud sõlm on seatud
+                    Andmed.valitudSõlm = valitudSõlm;
                     opt.action();
+                    menüü.style.display = 'none'; // Peidame menüü pärast valikut
                 };
             } else {
                 li.style.color = '#ccc';
@@ -630,8 +675,13 @@ const PuuHaldur = {
     async lisaLeht() {
         const nimi = prompt('Sisesta lehe nimi:');
         if (!nimi) return;
-        await apiKutse('add_puu', { nimi, vanem_id: Andmed.valitudSõlm?.id || null, on_oks: 0 });
-        this.laadiPuu();
+        const vastus = await apiKutse('add_puu', { nimi, vanem_id: Andmed.valitudSõlm?.id || null, on_oks: 0 });
+        if (vastus.status === 'added') {
+            await this.laadiPuu(); // Laadi puu uuesti
+            this.kuvaPuu(); // Värskenda kuvamist
+        } else {
+            alert('Lehe lisamine ebaõnnestus!');
+        }
     },
 
     async kustutaSõlm() {
@@ -663,10 +713,21 @@ const PuuHaldur = {
         }
     },
 
+    getFullPath(sõlm) {
+        const path = [];
+        let current = sõlm;
+        while (current) {
+            path.unshift(current.nimi);
+            current = this.findNode(Andmed.puu, current.vanem_id);
+        }
+        return path.join('/');
+    },
+    
     kuvaPostitamisLeht() {
         const peasisu = document.getElementById('peasisu');
+        const fullPath = this.getFullPath(Andmed.valitudSõlm);
         peasisu.innerHTML = `
-            <h2>Postitused sõlmele: ${Andmed.valitudSõlm.nimi}</h2>
+            <h2>${fullPath}</h2>
             <div class="postituse-redaktor">
                 <textarea placeholder="Kirjuta postitus..."></textarea>
                 <input type="file" id="faili-sisend" multiple>
@@ -696,6 +757,18 @@ const PuuHaldur = {
             }
         }
         return null;
+    },
+
+    async LISA_UUS_OKS() {
+        const nimi = prompt('Sisesta oksa nimi:');
+        if (!nimi) return;
+        const vastus = await apiKutse('add_puu', { nimi, vanem_id: null, on_oks: 1 });
+        if (vastus.status === 'added') {
+            await this.laadiPuu();
+            this.kuvaPuu();
+        } else {
+            alert('Oksa lisamine ebaõnnestus!');
+        }
     }
 };
 
@@ -938,7 +1011,8 @@ const PostitusteHaldur = {
             kommentaarideHtml += '</div>';
 
             div.innerHTML = `
-                <p>${tekst} <small>${new Date(postitus.aeg * 1000).toLocaleString()}</small></p>
+                <p>${tekst} <small>${new Date(postitus.aeg * 1000).toLocaleString()}</small>
+                <button onclick="PostitusteHaldur.toggleMuudaPostitus(${postitus.id}, '${tekst.replace(/'/g, "\\'")}')">Muuda</button></p>
                 ${failideHtml}
                 ${kommentaarideHtml}
                 <div class="kommentaari-redaktor" data-postitus-id="${postitus.id}">
@@ -974,17 +1048,18 @@ const PostitusteHaldur = {
                     const puuId = targetPost ? targetPost.puu_id : null;
                     return `<a href="#postitus-${p2}" onclick="AjaluguHaldur.liiguKirjeni('postitus', ${p2}, ${puuId || 'null'}); return false;">${p1}</a>`;
                 });
-            html += `
-                <div class="kommentaar" id="kommentaar-${komm.id}" style="margin-left: ${tase * 20}px">
-                    <p>${tekst} <small>${new Date(komm.aeg * 1000).toLocaleString()}</small>
-                    <button onclick="PostitusteHaldur.toggleVasta(${komm.id}, ${postitusId})">Vasta</button>
-                    <button onclick="PostitusteHaldur.kustutaKommentaar(${komm.id})">Kustuta</button></p>
-                    <div class="vasta-redaktor" id="vasta-${komm.id}" style="display: none;">
-                        <textarea placeholder="Vasta kommentaarile..."></textarea>
-                        <button onclick="PostitusteHaldur.lisaKommentaar(${postitusId}, ${komm.id})">Saada vastus</button>
+                html += `
+                    <div class="kommentaar" id="kommentaar-${komm.id}" style="margin-left: ${tase * 20}px">
+                        <p>${tekst} <small>${new Date(komm.aeg * 1000).toLocaleString()}</small>
+                        <button onclick="PostitusteHaldur.toggleMuudaKommentaar(${komm.id})">Muuda</button>
+                        <button onclick="PostitusteHaldur.toggleVasta(${komm.id}, ${postitusId})">Vasta</button>
+                        <button onclick="PostitusteHaldur.kustutaKommentaar(${komm.id})">Kustuta</button></p>
+                        <div class="vasta-redaktor" id="vasta-${komm.id}" style="display: none;">
+                            <textarea placeholder="Vasta kommentaarile..."></textarea>
+                            <button onclick="PostitusteHaldur.lisaKommentaar(${postitusId}, ${komm.id})">Saada vastus</button>
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
             if (komm.lapsed.length > 0) {
                 html += this.renderKommentaarid(komm.lapsed, postitusId, kõikPostitused, tase + 1);
             }
@@ -1058,8 +1133,10 @@ const PostitusteHaldur = {
                 });
             const div = document.createElement('div');
             div.className = 'kommentaar';
+            div.dataset.id = komm.id; // Add data-id for easier targeting
             div.innerHTML = `
                 <p>${tekst} <small>${new Date(komm.aeg * 1000).toLocaleString()}</small>
+                <button onclick="PostitusteHaldur.toggleMuudaPildiKommentaar(${komm.id}, '${path}')">Muuda</button>
                 <button onclick="PostitusteHaldur.kustutaPildiKommentaar(${komm.id}, '${path}')">Kustuta</button></p>
             `;
             konteiner.appendChild(div);
@@ -1077,6 +1154,81 @@ const PostitusteHaldur = {
     async kustutaPildiKommentaar(id, path) {
         if (!confirm('Kas kustutada pildi kommentaar?')) return;
         await apiKutse('delete_image_comment', { id });
+        this.kuvaPildiKommentaarid(path);
+    },
+
+    async toggleMuudaPostitus(id, tekst) {
+        const postDiv = document.getElementById(`postitus-${id}`);
+        const p = postDiv.querySelector('p');
+        if (p.querySelector('textarea')) return;
+
+        const textarea = document.createElement('textarea');
+        textarea.value = tekst.split(' <small>')[0]; // Remove timestamp
+        p.innerHTML = '';
+        p.appendChild(textarea);
+        const saveBtn = document.createElement('button');
+        saveBtn.textContent = 'Salvesta';
+        saveBtn.onclick = () => this.salvestaPostitusMuudatus(id);
+        p.appendChild(saveBtn);
+    },
+
+    async salvestaPostitusMuudatus(id) {
+        const postDiv = document.getElementById(`postitus-${id}`);
+        const textarea = postDiv.querySelector('textarea');
+        const uusTekst = textarea.value;
+        await apiKutse('update_post', { id, tekst: encodeURIComponent(uusTekst) });
+        this.kuvaPostitused();
+    },
+
+    async toggleMuudaKommentaar(id) {
+        const kommDiv = document.getElementById(`kommentaar-${id}`);
+        const p = kommDiv.querySelector('p');
+        const origTekst = p.childNodes[0].textContent.trim(); // Get only the text before <small> and buttons
+        if (p.querySelector('textarea')) return;
+
+        const textarea = document.createElement('textarea');
+        textarea.value = origTekst;
+        p.innerHTML = '';
+        p.appendChild(textarea);
+        const saveBtn = document.createElement('button');
+        saveBtn.textContent = 'Salvesta';
+        saveBtn.onclick = () => this.salvestaKommentaarMuudatus(id);
+        p.appendChild(saveBtn);
+    },
+
+    async salvestaKommentaarMuudatus(id) {
+        const kommDiv = document.getElementById(`kommentaar-${id}`);
+        const textarea = kommDiv.querySelector('textarea');
+        const uusTekst = textarea.value;
+        await apiKutse('update_comment', { id, tekst: encodeURIComponent(uusTekst) });
+        this.kuvaPostitused();
+    },
+
+    async toggleMuudaPildiKommentaar(id, path) {
+        const konteiner = document.getElementById('pildi-kommentaarid');
+        const kommDiv = konteiner.querySelector(`[data-id="${id}"]`);
+        if (!kommDiv) return;
+
+        const p = kommDiv.querySelector('p');
+        const origTekst = p.childNodes[0].textContent.trim(); // Get only the text before <small> and buttons
+        if (p.querySelector('textarea')) return;
+
+        const textarea = document.createElement('textarea');
+        textarea.value = origTekst;
+        p.innerHTML = '';
+        p.appendChild(textarea);
+        const saveBtn = document.createElement('button');
+        saveBtn.textContent = 'Salvesta';
+        saveBtn.onclick = () => this.salvestaPildiKommentaarMuudatus(id, path);
+        p.appendChild(saveBtn);
+    },
+
+    async salvestaPildiKommentaarMuudatus(id, path) {
+        const konteiner = document.getElementById('pildi-kommentaarid');
+        const kommDiv = konteiner.querySelector(`[data-id="${id}"]`);
+        const textarea = kommDiv.querySelector('textarea');
+        const uusTekst = textarea.value;
+        await apiKutse('update_image_comment', { id, tekst: encodeURIComponent(uusTekst) });
         this.kuvaPildiKommentaarid(path);
     },
 
