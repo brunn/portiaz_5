@@ -16,7 +16,7 @@ function getDatabase() {
         die(json_encode(['status' => 'error', 'message' => 'Database directory not writable']));
     }
     $db = new SQLite3($dbPath);
-    $db->exec('CREATE TABLE IF NOT EXISTS puu (f
+    $db->exec('CREATE TABLE IF NOT EXISTS puu (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nimi TEXT NOT NULL,
         vanem_id INTEGER,
@@ -241,7 +241,7 @@ if (isset($_GET['action'])) {
             $data = [];
             $uniqueIds = [];
         
-
+            
             // Otsi puust
             $result = $db->query('SELECT * FROM puu');
             while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
@@ -324,7 +324,7 @@ if (isset($_GET['action'])) {
             echo json_encode($history ?: []);
             break;
         case 'get_post_titles':
-            $result = $db->query('SELECT id, tekst FROM postitused ORDER BY aeg DESC');
+            $result = $db->query('SELECT id, puu_id, tekst FROM postitused ORDER BY aeg DESC');
             $titles = [];
             while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
                 $titles[] = [
@@ -426,6 +426,7 @@ if (isset($_GET['action'])) {
         .kommentaar small { color: #666; }
         .kommentaar button { margin-left: 10px; }
         .kommentaari-textarea{width: 100%;  padding-bottom: 10px;margin-bottom: 10px;}
+        .kommentaari-editor-container {height: 100px;border: 1px solid #ccc;border-radius: 4px;width: 100%;box-sizing: border-box;}
         #pildi-kommentaar-tekst{width: 100%;height: 10%;}
         button { padding: 5px 10px; margin: 0 5px; cursor: pointer; background: #1a73e8; color: white; border: none; border-radius: 4px; }
         button:hover { background: #1557b0; }
@@ -440,13 +441,7 @@ if (isset($_GET['action'])) {
         .soovitus-list {background: white;border: 1px solid #ccc;max-height: 200px;overflow-y: auto;z-index: 100;}
         .soovitus-item {padding: 5px;cursor: pointer;}
         .soovitus-item:hover, .soovitus-item.aktiivne {background: #ddd;}
-        button{padding: 0;
-  margin: 0;
-  cursor: pointer;
-  background: #1a73e8;
-  color: white;
-  border: none;
-  border-radius: 4px;}
+        button{padding: 0;margin: 0;cursor: pointer;background: #1a73e8;color: white;border: none;border-radius: 4px;}
     </style>
 </head>
 <body>
@@ -1176,6 +1171,8 @@ const PostitusteHaldur = {
         if (p.querySelector('textarea')) return;
 
         const textarea = document.createElement('textarea');
+        textarea.id = `kommentaar-editor-${id}`; // Lisa unikaalne ID
+        textarea.className = 'kommentaari-editor-container'; // Lisa klass stiilide jaoks
         textarea.value = tekst.split(' <small>')[0]; // Remove timestamp
         p.innerHTML = '';
         p.appendChild(textarea);
@@ -1200,6 +1197,8 @@ const PostitusteHaldur = {
         if (p.querySelector('textarea')) return;
 
         const textarea = document.createElement('textarea');
+        textarea.id = `kommentaar-editor-${id}`; // Lisa unikaalne ID
+        textarea.className = 'kommentaari-editor-container'; // Lisa klass stiilide jaoks
         textarea.value = origTekst;
         p.innerHTML = '';
         p.appendChild(textarea);
@@ -1227,6 +1226,8 @@ const PostitusteHaldur = {
         if (p.querySelector('textarea')) return;
 
         const textarea = document.createElement('textarea');
+        textarea.id = `kommentaar-editor-${id}`; // Lisa unikaalne ID
+        textarea.className = 'kommentaari-editor-container'; // Lisa klass stiilide jaoks
         textarea.value = origTekst;
         p.innerHTML = '';
         p.appendChild(textarea);
