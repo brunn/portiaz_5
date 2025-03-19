@@ -14,7 +14,7 @@ Kaustade seaded:
 * *composer require brunn/portiaz_5:^1.0*
 
 # Peavaade
-![Kirjeldus](ajaloo_vaade.png)
+![Kirjeldus](doc/ajaloo_vaade.png)
 Märkmik lokaalseks kasutamiseks
 # Pildi kommentaaride vaade
 ![Kirjeldus](pildivaade.png)
