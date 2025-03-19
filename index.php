@@ -16,6 +16,10 @@ function getDatabase() {
         die(json_encode(['status' => 'error', 'message' => 'Database directory not writable']));
     }
     $db = new SQLite3($dbPath);
+
+    $result = $db->querySingle('PRAGMA encoding;');
+    //logError("Database encoding: " . $result);
+
     $db->exec('CREATE TABLE IF NOT EXISTS puu (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nimi TEXT NOT NULL,
@@ -47,7 +51,7 @@ function getDatabase() {
         aeg INTEGER NOT NULL
     )');
 
-    // Lisa vaikimisi juur, kui puu on tühi
+    // Lisa vaikimisi juur
     $result = $db->querySingle('SELECT COUNT(*) FROM puu');
     if ($result == 0) {
         $db->exec("INSERT INTO puu (nimi, vanem_id, on_oks) VALUES ('Juur', NULL, 1)");
@@ -306,16 +310,45 @@ if (isset($_GET['action'])) {
             break;
 
         case 'search':
-            $query = strtolower($_GET['query'] ?? '');
+            $query = urldecode($_GET['query'] ?? '');
+            if (!mb_check_encoding($query, 'UTF-8')) {
+                $query = mb_convert_encoding($query, 'UTF-8');
+            }
+            $query = mb_strtolower($query, 'UTF-8');
+
             $data = [];
             $uniqueIds = [];
+            $db = getDatabase();
         
-            
+            function getPuuTee($db, $id, &$cache = []) {
+                if (isset($cache[$id])) return $cache[$id];
+                $tee = [];
+                $currentId = $id;
+                while ($currentId) {
+                    $stmt = $db->prepare('SELECT id, nimi, vanem_id FROM puu WHERE id = :id');
+                    $stmt->bindValue(':id', $currentId, SQLITE3_INTEGER);
+                    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+                    if (!$row) break;
+                    $tee[] = $row['nimi'];
+                    $currentId = $row['vanem_id'];
+                }
+                $cache[$id] = implode('->', array_reverse($tee));
+                return $cache[$id];
+            }
+        
+            $puuCache = [];
+        
             // Otsi puust
             $result = $db->query('SELECT * FROM puu');
             while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-                if (stripos($row['nimi'], $query) !== false && !in_array($row['id'], $uniqueIds)) {
-                    $data[] = ['type' => 'puu', 'id' => $row['id'], 'nimi' => $row['nimi'], 'puu_id' => $row['id']];
+                if (mb_stripos($row['nimi'], $query, 0, 'UTF-8') !== false && !in_array($row['id'], $uniqueIds)) {
+                    $data[] = [
+                        'type' => 'puu',
+                        'id' => $row['id'],
+                        'nimi' => $row['nimi'],
+                        'puu_id' => $row['id'],
+                        'tee' => getPuuTee($db, $row['id'], $puuCache)
+                    ];
                     $uniqueIds[] = $row['id'];
                 }
             }
@@ -323,14 +356,28 @@ if (isset($_GET['action'])) {
             // Otsi postitustest
             $result = $db->query('SELECT * FROM postitused');
             while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-                if (stripos($row['tekst'], $query) !== false && !in_array($row['id'], $uniqueIds)) {
-                    $data[] = ['type' => 'postitus', 'id' => $row['id'], 'tekst' => $row['tekst'], 'puu_id' => $row['puu_id']];
+                $tee = getPuuTee($db, $row['puu_id'], $puuCache);
+                if (mb_stripos($row['tekst'], $query, 0, 'UTF-8') !== false && !in_array($row['id'], $uniqueIds)) {
+                    $data[] = [
+                        'type' => 'postitus',
+                        'id' => $row['id'],
+                        'tekst' => $row['tekst'],
+                        'puu_id' => $row['puu_id'],
+                        'tee' => $tee
+                    ];
                     $uniqueIds[] = $row['id'];
                 }
                 $manused = json_decode($row['manused'] ?? '[]', true);
                 foreach ($manused as $manus) {
-                    if (stripos($manus['path'], $query) !== false && !in_array($row['id'], $uniqueIds)) {
-                        $data[] = ['type' => 'postitus', 'id' => $row['id'], 'tekst' => $row['tekst'], 'puu_id' => $row['puu_id']];
+                    $fileName = basename($manus['path']);
+                    if (mb_stripos($fileName, $query, 0, 'UTF-8') !== false && !in_array($row['id'], $uniqueIds)) {
+                        $data[] = [
+                            'type' => $manus['type'] && strpos($manus['type'], 'image/') === 0 ? 'pilt' : 'fail',
+                            'id' => $row['id'],
+                            'tekst' => $fileName,
+                            'puu_id' => $row['puu_id'],
+                            'tee' => $tee
+                        ];
                         $uniqueIds[] = $row['id'];
                     }
                 }
@@ -339,22 +386,36 @@ if (isset($_GET['action'])) {
             // Otsi kommentaaridest
             $result = $db->query('SELECT k.*, p.puu_id FROM kommentaarid k JOIN postitused p ON k.postitus_id = p.id');
             while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-                if (stripos($row['tekst'], $query) !== false && !in_array($row['postitus_id'], $uniqueIds)) {
-                    $data[] = ['type' => 'kommentaar', 'id' => $row['id'], 'tekst' => $row['tekst'], 'puu_id' => $row['puu_id']];
+                if (mb_stripos($row['tekst'], $query, 0, 'UTF-8') !== false && !in_array($row['postitus_id'], $uniqueIds)) {
+                    $tee = getPuuTee($db, $row['puu_id'], $puuCache);
+                    $data[] = [
+                        'type' => 'kommentaar',
+                        'id' => $row['id'],
+                        'tekst' => $row['tekst'],
+                        'puu_id' => $row['puu_id'],
+                        'tee' => $tee
+                    ];
                     $uniqueIds[] = $row['postitus_id'];
                 }
             }
         
-            // Otsi pildi kommentaaridest
+            // Otsi pildi/faili kommentaaridest
             $result = $db->query('SELECT * FROM pildi_kommentaarid');
             while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-                if (stripos($row['tekst'], $query) !== false) {
+                if (mb_stripos($row['tekst'], $query, 0, 'UTF-8') !== false) {
                     $post_stmt = $db->prepare('SELECT * FROM postitused WHERE manused LIKE :path');
                     $post_stmt->bindValue(':path', "%{$row['pilt_path']}%", SQLITE3_TEXT);
                     $post_result = $post_stmt->execute();
                     if ($post_row = $post_result->fetchArray(SQLITE3_ASSOC)) {
                         if (!in_array($post_row['id'], $uniqueIds)) {
-                            $data[] = ['type' => 'pildi_kommentaar', 'id' => $row['id'], 'tekst' => $row['tekst'], 'puu_id' => $post_row['puu_id']];
+                            $tee = getPuuTee($db, $post_row['puu_id'], $puuCache);
+                            $data[] = [
+                                'type' => 'pildi_kommentaar',
+                                'id' => $row['id'],
+                                'tekst' => $row['tekst'],
+                                'puu_id' => $post_row['puu_id'],
+                                'tee' => $tee
+                            ];
                             $uniqueIds[] = $post_row['id'];
                         }
                     }
@@ -463,7 +524,8 @@ if (isset($_GET['action'])) {
         header { background: #1a1a1a; color: white; padding: 10px; position: sticky; top: 0; z-index: 10; }
         #otsing { width: 100%; padding: 8px; font-size: 16px; border: none; border-radius: 4px; }
         #otsingu-tulemused { position: absolute; background: white; color: black; max-height: 200px; overflow-y: auto; width: 50%; border: 1px solid #ccc; z-index: 20; }
-        .otsingu-tulemus { padding: 5px; cursor: pointer; }
+        .otsingu-tulemus_orikas { padding: 5px; cursor: pointer; }
+        .otsingu-tulemus {padding: 5px;cursor: pointer;white-space: nowrap;overflow: hidden;text-overflow: ellipsis;}
         .otsingu-tulemus:hover, .otsingu-tulemus.active { background: #ddd; }
         .konteiner { display: flex; flex: 1; overflow: hidden; }
         #puu-konteiner { width: 300px; background: #f4f4f4; overflow-y: auto; padding: 10px; position: relative; }
@@ -1571,16 +1633,42 @@ const PostitusteHaldur = {
 
 // Otsingu haldamine
 document.getElementById('otsing').addEventListener('input', async (e) => {
-    const query = e.target.value.trim();
+    //const query = e.target.value.trim();
+    const query = e.target.value; // Eemalda .trim(), et tühikud säiliksid
     const tulemused = document.getElementById('otsingu-tulemused');
     if (!query) {
         tulemused.innerHTML = '';
         return;
     }
     const data = await apiKutse('search', { query: encodeURIComponent(query) });
-    tulemused.innerHTML = data.map(t => `
-        <div class="otsingu-tulemus" data-type="${t.type}" data-id="${t.id}" data-puu-id="${t.puu_id}" onclick="PuuHaldur.valiSõlm(${t.puu_id}, '${t.type}', ${t.id})">${t.nimi || t.tekst}</div>
-    `).join('');
+    tulemused.innerHTML = data.map(t => {
+        let kuvatavTekst = '';
+        switch (t.type) {
+            case 'puu':
+                kuvatavTekst = `${t.tee} (${t.nimi})`;
+                break;
+            case 'postitus':
+                kuvatavTekst = `${t.tee}->Postituse tekst->${t.tekst}`;
+                break;
+            case 'pilt':
+                kuvatavTekst = `${t.tee}->Postituse pilt->${t.tekst}`;
+                break;
+            case 'fail':
+                kuvatavTekst = `${t.tee}->Postituse fail->${t.tekst}`;
+                break;
+            case 'kommentaar':
+                kuvatavTekst = `${t.tee}->Postituse kommentaar->${t.tekst}`;
+                break;
+            case 'pildi_kommentaar':
+                kuvatavTekst = `${t.tee}->Postituse faili/pildi kommentaar->${t.tekst}`;
+                break;
+        }
+        return `
+            <div class="otsingu-tulemus" data-type="${t.type}" data-id="${t.id}" data-puu-id="${t.puu_id}" onclick="PuuHaldur.valiSõlm(${t.puu_id}, '${t.type}', ${t.id})">
+                ${kuvatavTekst}
+            </div>
+        `;
+    }).join('');
 });
 
 //Klahvi navigatsioon
