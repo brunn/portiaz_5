@@ -4,11 +4,9 @@ error_reporting(E_ALL);
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 ini_set('error_log',__DIR__ . '/error.log');
-
 function logError($message) {
     file_put_contents(__DIR__ . '/error.log', date('Y-m-d H:i:s') . " - $message\n", FILE_APPEND);
 }
-
 function getDatabase() {
     $dbPath = __DIR__ . '/ANDMEBAAS_PUU.db';
     if (!is_writable(dirname($dbPath))) {
@@ -56,7 +54,6 @@ function getDatabase() {
     }
     return $db;
 }
-
 // Faili üleslaadimine suhtelise teega
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
     header('Content-Type: application/json');
@@ -79,8 +76,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
     }
     exit;
 }
-
-
 // Postituse salvestamine
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save_post') {
     header('Content-Type: application/json');
@@ -106,7 +101,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     echo json_encode(['status' => 'added', 'id' => $id]);
     exit;
 }
-
 // API toimingud
 if (isset($_GET['action'])) {
     header('Content-Type: application/json');
@@ -422,35 +416,6 @@ if (isset($_GET['action'])) {
         
             echo json_encode($data);
             break;
-        case 'get_history':
-            $limit = $_GET['limit'] ?? 10;
-            $history = [];
-            
-            $result = $db->query("SELECT id, puu_id, tekst, aeg, manused, 'postitus' as type FROM postitused ORDER BY aeg DESC LIMIT $limit");
-            while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-                $history[] = $row;
-            }
-            
-            // Lisa puu_id kommentaaridele, mis viitab postituse puu_id-le
-            $result = $db->query("SELECT k.id, p.puu_id, k.tekst, k.aeg, 'kommentaar' as type 
-                                    FROM kommentaarid k 
-                                    JOIN postitused p ON k.postitus_id = p.id 
-                                    ORDER BY k.aeg DESC LIMIT $limit");
-            while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-                $history[] = $row;
-            }
-            
-            $result = $db->query("SELECT id, pilt_path as puu_id, tekst, aeg, 'fail' as type 
-                                    FROM pildi_kommentaarid ORDER BY aeg DESC LIMIT $limit");
-            while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-                $history[] = $row;
-            }
-            
-            usort($history, function($a, $b) { return $b['aeg'] - $a['aeg']; });
-            $history = array_slice($history, 0, $limit);
-            
-            echo json_encode($history ?: []);
-            break;
         case 'get_post_titles':
             $result = $db->query('SELECT id, puu_id, tekst FROM postitused ORDER BY aeg DESC');
             $titles = [];
@@ -516,7 +481,6 @@ if (isset($_GET['action'])) {
     exit;
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="et">
 <head>
@@ -530,24 +494,24 @@ if (isset($_GET['action'])) {
         #otsing { width: 100%; padding: 8px; font-size: 16px; border: none; border-radius: 4px; }
         #otsingu-tulemused { position: absolute; background: white; color: black; max-height: 200px; overflow-y: auto; width: 50%; border: 1px solid #ccc; z-index: 20; }
         .otsingu-tulemus {padding: 5px;cursor: pointer;white-space: nowrap;overflow: hidden;text-overflow: ellipsis;}
-        .otsingu-tulemus:hover, .otsingu-tulemus.active { background: #ddd; }
+        .otsingu-tulemus:hover, .otsingu-tulemus.active { background: #9d9d9d;color: #000000; }
         .konteiner { display: flex; flex: 1; overflow: hidden; }
-        #puu-konteiner { width: 300px; background: #fff; overflow-y: auto; padding: 10px; position: relative; }
+        #puu-konteiner { width: 275px; background: #fff; overflow-y: auto; padding: 10px; position: relative; }
         .puu-sõlm { padding: 5px; cursor: pointer; }
-        .puu-sõlm:hover { background: #ddd; }
+        .puu-sõlm:hover { background: #9d9d9d; }
         .puu-sõlm.laiendatud > .alamlehed { display: block; }
         .puu-sõlm .alamlehed { display: none; }
         #peasisu { flex: 1; padding: 20px; overflow-y: auto; background: white; }
         .postituse-redaktor { margin-bottom: 20px; }
-        .postituse-redaktor textarea {width: 100%;height: 150px;resize: vertical;padding: 10px;border: 1px solid #ccc;border-radius: 4px;font-size: 16px;box-sizing: border-box;white-space: pre-wrap;overflow-wrap: break-word;background: #fff;}
+        .postituse-redaktor textarea {width: 100%;height: 150px;resize: both;padding: 10px;border: 1px solid #ccc;border-radius: 4px;font-size: 16px;box-sizing: border-box;white-space: pre-wrap;overflow-wrap: break-word;background: #fff;}
         .postituse-redaktor textarea:focus {outline: none;border-color: #f0f0f0;box-shadow: 0 0 5px rgba(26, 115, 232, 0.3);}
         .postituse-redaktor button {padding: 8px 16px;background:transparent;color: #9d9d9d;border: none;border-radius: 4px;cursor: pointer;}
-        .postituse-redaktor button:hover {background: #6cd7a5;}
+        .postituse-redaktor button:hover {background: #9d9d9d;color: #000000;}
         .postitus{box-shadow: 0 4px 28px 0 rgb(210, 210, 210), 0 6px 20px 0 rgb(255, 255, 255);border-radius: 8px;margin-bottom: 10px;padding: 15px;background: #fff;}
         .postitus-text {white-space: pre-wrap;overflow-wrap: break-word;margin: 0 0 10px 0;}
         .postitus-timestamp {color: #666;font-size: 12px;}
         .postitus button {padding: 5px 10px;background:transparent;color: #9d9d9d;border: none;border-radius: 4px;cursor: pointer;}
-        .postitus button:hover {background: #6cd7a5;}
+        .postitus button:hover {background: #9d9d9d;color: #000000;}
         .galerii { display: list-item; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
         .galerii-üksus img { width: 50%;height: auto; border-radius: 4px; cursor: pointer; }
         .kommentaari-paan { background: #f0f0f0; padding: 5px; margin-top: 5px; border-radius: 4px; }
@@ -556,46 +520,42 @@ if (isset($_GET['action'])) {
         .kontekstimenüü { position: absolute; background: white; border: 1px solid #ccc; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         .kontekstimenüü ul { list-style: none; padding: 0; margin: 0; }
         .kontekstimenüü li { padding: 8px 12px; cursor: pointer; }
-        .kontekstimenüü li:hover { background: #e0e0e0; }
+        .kontekstimenüü li:hover { color: #000000; }
         .postituse-failid { margin-top: 10px; }
         .postituse-failid a { display: block; margin: 5px 0; color: #6cd7a5; text-decoration: none; }
         .postituse-kommentaarid { margin-top: 15px; }
         .pildi-kommentaar {overflow: hidden;margin: 5px 0;padding: 5px;border-radius: 4px;}
-        
         .vasta-redaktor {margin-left: 20px;margin-top: 5px;}
-        .vasta-redaktor {width: 98%;
-            padding-bottom:10px;margin-bottom: 2px;height:50px;
-            resize:vertical;border:1px solid #ccc;border-radius:4px;margin-top: 7px;
-            font-size: 16px;box-sizing: border-box;white-space: pre-wrap;overflow-wrap: break-word;background: #fff;}
+        .vasta-redaktor {width: 98%;padding-bottom:10px;margin-bottom: 2px;height:50px;resize:both;border:1px solid #ccc;border-radius:4px;margin-top: 7px;font-size: 16px;box-sizing: border-box;white-space: pre-wrap;overflow-wrap: break-word;background: #fff;}
         .vasta-redaktor:focus {outline: none;border-color: #f0f0f0;box-shadow: 0 0 5px rgba(26, 115, 232, 0.3);}
-
         .kommentaar { border-top: 1px solid #ddd; position: relative; }
         .kommentaar small { color: #666; }
         .kommentaar button { margin-left: 10px; }
-
         .kommentaari-textarea:focus {outline: none;border-color: #f0f0f0;box-shadow: 0 0 5px rgba(26, 115, 232, 0.3);}
-        .kommentaari-textarea{width: 100%;padding-bottom:10px;margin-bottom: 10px;height:50px;resize:vertical;border:1px solid #ccc;border-radius: 4px;font-size: 16px;box-sizing: border-box;white-space: pre-wrap;overflow-wrap: break-word;background: #fff;margin-top: 10px;}
-        
-        .kommentaari-editor-container {height: 100px;border: 1px solid #ccc;border-radius: 4px;width: 100%;box-sizing: border-box;}
+        .kommentaari-textarea{width: 100%;padding-bottom:10px;margin-bottom: 10px;height:50px;resize:both;border:1px solid #ccc;border-radius: 4px;font-size: 16px;box-sizing: border-box;white-space: pre-wrap;overflow-wrap: break-word;background: #fff;margin-top: 10px;}
+        .kommentaari-editor-container {font-family: Arial, sans-serif;height: 100px;border: 1px solid #ccc;border-radius: 4px;width: 100%;box-sizing: border-box;}
+        .kommentaari-editor-container:focus {outline: none;border-color: #f0f0f0;box-shadow: 0 0 5px rgba(26, 115, 232, 0.3);}
         .kommentaaride-lapsed{margin-left: 41px;}
-        #pildi-kommentaar-tekst{width: 100%;height: 10%;}
+        #pildi-kommentaar-tekst{width: 100%;height: 67px;}
+        #pildi-kommentaar-tekst, #faili-kommentaar-tekst {resize: both;padding: 10px;border: 1px solid #ccc;border-radius: 4px;font-size: 16px;box-sizing: border-box;white-space: pre-wrap;overflow-wrap: break-word;background: #fff;margin-bottom: 5px;}
+        #pildi-kommentaar-tekst:focus, #faili-kommentaar-tekst:focus {outline: none;border-color: #f0f0f0;box-shadow: 0 0 5px rgba(26, 115, 232, 0.3);}
         .modal-kommentaarid .kommentaar {display: flex;align-items: flex-start;margin: 5px 0;}
         .modal-kommentaarid .kommentaar i {width: 50px;height: 50px;margin-right: 10px;font-size: 30px;line-height: 50px;color: #666;}
         .modal-kommentaarid .kommentaar div {flex: 1;}
         button { padding: 5px 10px; margin: 0 5px; cursor: pointer; background: #fff; color: #9d9d9d; border: none; border-radius: 4px; }
-        button:hover { background: #6cd7a5; }
+        button:hover { background: #9d9d9d; color: #000000;}
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; }
         .modal.active { display: flex; justify-content: center; align-items: center; }
         .modal-content { max-width: 90%; max-height: 90%; background: white; border-radius: 5px; display: flex;padding: 10px; }
-        .modal-image { max-width: 70%; max-height: 100%; object-fit: fill; border-radius: 5px 0 0 5px; }
+        .modal-image { max-width: 70%; max-height: 100%; object-fit: contain; border-radius: 5px 0 0 5px; }
         .modal-kommentaarid { width: 300px; padding: 20px; overflow-y: auto; }
         .ajalugu-kirje {padding: 8px;border-bottom: 1px solid #ddd;cursor: pointer;}
-        .ajalugu-kirje:hover {background: #f0f0f0;}
+        .ajalugu-kirje:hover {background: #9d9d9d;}
         .ajalugu-kirje a {text-decoration: none;color: #333;display: block;}
         .soovitus-list {background: white;border: 1px solid #ccc;max-height: 200px;overflow-y: auto;z-index: 100;}
         .soovitus-item {padding: 5px;cursor: pointer;}
-        .soovitus-item:hover, .soovitus-item.aktiivne {background: #ddd;}
-        button{padding: 0;margin: 0;cursor: pointer;background: #1a73e8;color: white;border: none;border-radius: 4px;}
+        .soovitus-item:hover, .soovitus-item.aktiivne {background: #ddd;color: #000000;}
+        button{padding: 0;margin: 0;cursor: pointer;background:transparent;color: #9d9d9d;border: none;border-radius: 4px;}
         .faili-kommentaar {overflow: hidden;margin: 5px 0;padding: 5px;border-radius: 4px;}
         .faili-kommentaar i {color: #0d0d0d;}
         #faili-kommentaar-tekst {width: 100%;height: 60px;margin-bottom: 5px;}
@@ -608,11 +568,9 @@ if (isset($_GET['action'])) {
         .modal-kommentaarid #modal-post-tekst, .modal-kommentaarid #modal-fail-post-tekst {margin-bottom: 15px;padding: 10px;border-radius: 4px;}
         .modal-kommentaarid #modal-post-tekst p, .modal-kommentaarid #modal-fail-post-tekst p {margin: 0;}
         .modal-kommentaarid #modal-post-tekst small, .modal-kommentaarid #modal-fail-post-tekst small {color: #666;display: block;}
-        #pildi-kommentaar-tekst, #faili-kommentaar-tekst {resize: vertical;padding: 10px;border: 1px solid #ccc;border-radius: 4px;font-size: 16px;box-sizing: border-box;white-space: pre-wrap;overflow-wrap: break-word;background: #fff;margin-bottom: 5px;}
-        #pildi-kommentaar-tekst:focus, #faili-kommentaar-tekst:focus {outline: none;border-color: #1a73e8;box-shadow: 0 0 5px rgba(26, 115, 232, 0.3);}
         .file-upload-wrapper {display: inline-block;position: relative;}
         .file-upload-btn {padding: 6px 8px;background: #1a73e8;color: white;border: none;border-radius: 4px;cursor: pointer;font-size: 14px;}
-        .file-upload-btn:hover {background: #1557b0;}
+        .file-upload-btn:hover {background: #9d9d9d;color: #000000;}
         .hidden { display: none; }
         #ajalugu-vaade { padding: 20px; width: 98%;background-color: #fff;}
         .ajalugu-filtrid { margin-bottom: 15px; }
@@ -624,8 +582,21 @@ if (isset($_GET['action'])) {
         .highlight {background: #8cff015c;transition: background 0.5s;}
         .ajalugu-link{ color: #424242; text-decoration: none;}
         .otsingu-link{ color: #424242; text-decoration: none;}
-        .must_tekst{color: #424242; }
-</style>
+        .must_tekst{color: #424242;}
+        #jooksev-paan {width: 275px;background: #fff;padding: 10px;overflow-y: auto;}
+        .jooksev-kirje {cursor: pointer;}
+        .jooksev-kirje:hover {background: #9d9d9d;}
+        .jooksev-kirje a {text-decoration: none;color: #424242;display: block;}
+        .jooksev-kirje small {color: #666;}
+        #peasisu {scrollbar-width: thin;scrollbar-color: #888 #f1f1f1;}
+        #peasisu::-webkit-scrollbar {width: 8px;}
+        #peasisu::-webkit-scrollbar-track {background: #f1f1f1;}
+        #peasisu::-webkit-scrollbar-thumb {background: #888;}
+        #peasisu::-webkit-scrollbar-thumb:hover {background: #555;}
+        .copy-btn {background: none;border: none;cursor: pointer;padding: 2px 5px;font-size: 12px;color: #666;vertical-align: middle;}
+        .copy-btn:hover {color: #000;}
+        .copy-btn i {margin: 0;}
+    </style>
 </head>
 <body>
     <header>
@@ -656,6 +627,11 @@ if (isset($_GET['action'])) {
                 <label><input type="checkbox" id="filter-postitused" checked> Postitused</label>
             </div>
             <div id="ajalugu-sisu"></div>
+        </div>
+
+        <div id="jooksev-paan" class="jooksev-paan">
+            <h3>Tegevuse ajalugu</h3>
+            <div id="jooksev-sisu"></div>
         </div>
 
     </div>
@@ -759,6 +735,7 @@ if (isset($_GET['action'])) {
                     }
                 }
                 Andmed.valitudSõlm = sõlm;
+                JooksevHaldur.lisaLink(sõlm.on_oks ? 'oks' : 'leht', sõlm.id, sõlm.id, sõlm.nimi);
                 this.kuvaPostitamisLeht();
                 this.kuvaPuu(); // Värskenda puu, säilitades oleku
             },
@@ -938,6 +915,7 @@ if (isset($_GET['action'])) {
                 const sõlm = this.findNode(Andmed.puu, puuId);
                 if (sõlm) {
                     Andmed.valitudSõlm = sõlm;
+                    JooksevHaldur.lisaLink(sõlm.on_oks ? 'oks' : 'leht', sõlm.id, sõlm.id, sõlm.nimi);
                     this.kuvaPostitamisLeht();
                     document.getElementById('otsingu-tulemused').innerHTML = '';
                     // Kui on kommentaar või pildi_kommentaar, liigu konkreetse kirje juurde
@@ -1032,7 +1010,7 @@ if (isset($_GET['action'])) {
                 return rada.join('/');
             },
 
-            kuvaSoovitused(tekstVali, konteiner) {
+            async kuvaSoovitused(tekstVali, konteiner) {
                 const sisend = tekstVali.value;
                 const viimaneMark = sisend.lastIndexOf('[');
                 if (viimaneMark === -1 || sisend.length <= viimaneMark + 1) {
@@ -1042,7 +1020,69 @@ if (isset($_GET['action'])) {
 
                 const otsitav = sisend.substring(viimaneMark + 1).toLowerCase();
                 this.viimaneSisend = sisend.substring(0, viimaneMark + 1);
-                const soovitused = this.postTitles.filter(t => t.rada.toLowerCase().includes(otsitav));
+                const postitused = await apiKutse('get_postitused');
+                const soovitused = [];
+
+                postitused.forEach(post => {
+                    if (post.tekst.toLowerCase().includes(otsitav)) {
+                        soovitused.push({
+                            tüüp: 'postitus',
+                            id: post.id,
+                            puuId: post.puu_id,
+                            tekst: `Postitus: ${post.tekst.substring(0, 50)}...`
+                        });
+                    }
+
+                    const manused = JSON.parse(post.manused || '[]');
+                    manused.forEach(manus => {
+                        const fileName = manus.path.split('/').pop();
+                        if (fileName.toLowerCase().includes(otsitav)) {
+                            if (manus.type.startsWith('image/')) {
+                                soovitused.push({
+                                    tüüp: 'pilt',
+                                    id: post.id,
+                                    puuId: post.puu_id,
+                                    tekst: `Pilt: ${fileName}`
+                                });
+                            } else {
+                                soovitused.push({
+                                    tüüp: 'fail',
+                                    id: post.id,
+                                    puuId: post.puu_id,
+                                    tekst: `Fail: ${fileName}`
+                                });
+                            }
+                        }
+                    });
+
+                    const kommentaarid = PostitusteHaldur.ehitaKommentaarideHierarhia(post.kommentaarid || []);
+                    kommentaarid.forEach(komm => {
+                        if (komm.tekst.toLowerCase().includes(otsitav) && !komm.vanem_id) {
+                            soovitused.push({
+                                tüüp: 'kommentaar',
+                                id: komm.id,
+                                puuId: post.puu_id,
+                                tekst: `Kommentaar: ${komm.tekst.substring(0, 50)}...`
+                            });
+                        }
+                        const lisaVastused = (kommentaar) => {
+                            kommentaar.lapsed.forEach(laps => {
+                                if (laps.tekst.toLowerCase().includes(otsitav)) {
+                                    soovitused.push({
+                                        tüüp: 'vastus',
+                                        id: laps.id,
+                                        puuId: post.puu_id,
+                                        tekst: `Vastus: ${laps.tekst.substring(0, 50)}...`
+                                    });
+                                }
+                                if (laps.lapsed.length > 0) {
+                                    lisaVastused(laps);
+                                }
+                            });
+                        };
+                        lisaVastused(komm);
+                    });
+                });
 
                 if (soovitused.length === 0) {
                     this.peidaSoovitused(konteiner);
@@ -1059,10 +1099,11 @@ if (isset($_GET['action'])) {
                 soovitused.forEach((t, index) => {
                     const item = document.createElement('div');
                     item.className = 'soovitus-item';
-                    item.textContent = t.rada;
+                    item.textContent = t.tekst;
                     item.dataset.id = t.id;
-                    item.dataset.puuId = t.puu_id;
-                    item.onclick = () => this.valiSoovitus(t.id, t.tekst, t.puu_id, tekstVali);
+                    item.dataset.puuId = t.puuId;
+                    item.dataset.tüüp = t.tüüp;
+                    item.onclick = () => this.valiSoovitus(t.id, t.tekst.split(': ')[1].slice(0, -3), t.puuId, tekstVali);
                     if (index === this.aktiivneIndeks) {
                         item.classList.add('aktiivne');
                     }
@@ -1113,12 +1154,12 @@ if (isset($_GET['action'])) {
                 const valitud = soovitusDiv.querySelectorAll('.soovitus-item')[this.aktiivneIndeks];
                 const id = valitud.dataset.id;
                 const puuId = valitud.dataset.puuId;
-                const tekst = valitud.textContent.split('/').pop();
+                const tekst = valitud.textContent.split(': ')[1].slice(0, -3); // Eemalda tüüp ja "..."
                 this.valiSoovitus(id, tekst, puuId, tekstVali);
             }
         };
 
-        // Postituste haldamise moodul
+        // Postituste haldamine
         const PostitusteHaldur = {
             async lisaPostitus() {
                 if (!Andmed.valitudSõlm) return alert('Vali esmalt sõlm!');
@@ -1163,7 +1204,7 @@ if (isset($_GET['action'])) {
                 const link = document.getElementById('modal-fail-link');
                 const postTekstDiv = document.getElementById('modal-fail-post-tekst');
                 link.href = path;
-                link.innerHTML = `<b class="must_tekst">Vaata või lae alla:</b> ${fileName}`;
+                link.innerHTML = `<b class="must_tekst">Vaata või lae alla:</b> ${fileName} <button class="copy-btn" data-text="${encodeURIComponent(fileName)}" title="Kopeeri"><i class="fas fa-copy"></i></button>`;
                 modal.classList.add('active');
 
                 const relativePath = path.split(BASE_URL)[1];
@@ -1180,7 +1221,7 @@ if (isset($_GET['action'])) {
                             const puuId = targetPost ? targetPost.puu_id : null;
                             return `<a href="#postitus-${p2}" onclick="AjaluguHaldur.liiguKirjeni('postitus', ${p2}, ${puuId || 'null'}); return false;">${p1}</a>`;
                         });
-                    postTekstDiv.innerHTML = `${tekst} <small>${new Date(postitus.aeg * 1000).toLocaleString()}</small>`;
+                    postTekstDiv.innerHTML = `${tekst} <button class="copy-btn" data-text="${encodeURIComponent(postitus.tekst)}" title="Kopeeri"><i class="fas fa-copy"></i></button> <small>${new Date(postitus.aeg * 1000).toLocaleString()}</small>`;
                 } else {
                     postTekstDiv.innerHTML = '<p>Postitust ei leitud.</p>';
                 }
@@ -1190,7 +1231,28 @@ if (isset($_GET['action'])) {
                 modal.onclick = (e) => {
                     if (e.target === modal) modal.classList.remove('active');
                 };
-                this.lisaSoovitusKuulajad(modal); // Add listeners to modal textareas
+                this.lisaSoovitusKuulajad(modal);
+
+                // Lisa kopeerimise funktsionaalsus modaalile
+                modal.querySelectorAll('.copy-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const tekst = decodeURIComponent(btn.dataset.text);
+                        const tempInput = document.createElement('textarea');
+                        tempInput.value = tekst;
+                        document.body.appendChild(tempInput);
+                        tempInput.select();
+                        try {
+                            document.execCommand('copy');
+                            btn.innerHTML = '<i class="fas fa-check"></i>';
+                            setTimeout(() => btn.innerHTML = '<i class="fas fa-copy"></i>', 1000);
+                        } catch (err) {
+                            console.error('Kopeerimine ebaõnnestus:', err);
+                            alert('Kopeerimine ebaõnnestus!');
+                        } finally {
+                            document.body.removeChild(tempInput);
+                        }
+                    });
+                });
             },
 
             async kuvaFailiKommentaarid(path) {
@@ -1239,8 +1301,12 @@ if (isset($_GET['action'])) {
                 if (!kommDiv) return;
 
                 const p = kommDiv.querySelector('p');
-                const origTekst = p.childNodes[0].textContent.trim(); // Get only the text node before <small>
-                const origAeg = p.querySelector('small').textContent;
+                const origHtml = p.innerHTML; // Salvestame kogu HTML-i
+                const tekstNode = p.childNodes[0]; // Esimene tekstisõlm
+                const origTekst = tekstNode && tekstNode.nodeType === Node.TEXT_NODE ? tekstNode.textContent.trim() : '';
+                const small = p.querySelector('small');
+                const origAeg = small ? small.textContent : ''; // Kontrollime, kas small on olemas
+
                 if (p.querySelector('textarea')) return;
 
                 const textarea = document.createElement('textarea');
@@ -1258,9 +1324,7 @@ if (isset($_GET['action'])) {
                 const cancelBtn = document.createElement('button');
                 cancelBtn.textContent = 'Tühista';
                 cancelBtn.onclick = () => {
-                    p.innerHTML = `${origTekst} <small>${origAeg}</small>
-                        <button onclick="PostitusteHaldur.toggleMuudaFailiKommentaar(${id}, '${path}')">Muuda</button>
-                        <button onclick="PostitusteHaldur.kustutaFailiKommentaar(${id}, '${path}')">Kustuta</button>`;
+                    p.innerHTML = origHtml; // Taastame algse HTML-i
                 };
                 p.appendChild(cancelBtn);
             },
@@ -1306,7 +1370,9 @@ if (isset($_GET['action'])) {
                         if (manus.type.startsWith('image/')) {
                             const galeriiÜksus = document.createElement('div');
                             galeriiÜksus.className = 'galerii-üksus';
-                            galeriiÜksus.innerHTML = `<img src="${fullPath}" alt="${fileName}" onclick="PostitusteHaldur.avaPilt('${fullPath}')">`;
+                            galeriiÜksus.innerHTML = `
+                                <img src="${fullPath}" alt="${fileName}" onclick="PostitusteHaldur.avaPilt('${fullPath}')">
+                                <span>${fileName} <button class="copy-btn" data-text="${encodeURIComponent(fileName)}" title="Kopeeri"><i class="fas fa-copy"></i></button></span>`;
                             galerii.appendChild(galeriiÜksus);
 
                             const imgComments = await apiKutse('get_image_comments', { pilt_path: manus.path });
@@ -1324,7 +1390,7 @@ if (isset($_GET['action'])) {
                                         <div class="kommentaar pildi-kommentaar" data-komm-id="${komm.id}" onclick="PostitusteHaldur.avaPilt('${fullPath}')">
                                             <img src="${fullPath}" style="width: 50px; height: 50px; float: left; margin-right: 10px;">
                                             <div style="overflow: hidden;">
-                                                <p>${kommTekst}</p>
+                                                <p>${kommTekst} <button class="copy-btn" data-text="${encodeURIComponent(komm.tekst)}" title="Kopeeri"><i class="fas fa-copy"></i></button></p>
                                                 <small>${new Date(komm.aeg * 1000).toLocaleString()}</small>
                                             </div>
                                         </div>`;
@@ -1332,7 +1398,9 @@ if (isset($_GET['action'])) {
                                 galerii.appendChild(imgCommDiv);
                             }
                         } else {
-                            failideHtml += `<a href="#" onclick="PostitusteHaldur.avaFail('${fullPath}', '${fileName}'); return false;">${fileName}</a>`;
+                            failideHtml += `
+                                <a href="#" onclick="PostitusteHaldur.avaFail('${fullPath}', '${fileName}'); return false;">${fileName}</a>
+                                <button class="copy-btn" data-text="${encodeURIComponent(fileName)}" title="Kopeeri"><i class="fas fa-copy"></i></button>`;
                             const fileComments = await apiKutse('get_image_comments', { pilt_path: manus.path });
                             if (fileComments.length > 0) {
                                 const fileCommDiv = document.createElement('div');
@@ -1344,18 +1412,14 @@ if (isset($_GET['action'])) {
                                             const puuId = targetPost ? targetPost.puu_id : null;
                                             return `<a href="#postitus-${p2}" class="postitus-link" data-id="${p2}" data-puu-id="${puuId || ''}">${p1}</a>`;
                                         });
-
-
                                     fileCommDiv.innerHTML += `
-                                    <div class="kommentaar faili-kommentaar" data-komm-id="${komm.id}" onclick="PostitusteHaldur.avaFail('${fullPath}', '${fileName}')">
-                                        <i class="fas fa-file" style="margin-top: -7px;width: 50px; height: 50px; float: left; margin-right: -17px; font-size: 30px; line-height: 50px;"></i>
-                                        <div style="overflow: hidden;">
-                                            <p>${kommTekst}</p>
-                                            <small>${new Date(komm.aeg * 1000).toLocaleString()}</small>
-                                        </div>
-                                    </div>`;
-
-                                    
+                                        <div class="kommentaar faili-kommentaar" data-komm-id="${komm.id}" onclick="PostitusteHaldur.avaFail('${fullPath}', '${fileName}')">
+                                            <i class="fas fa-file" style="margin-top: -7px; width: 50px; height: 50px; float: left; margin-right: -17px; font-size: 30px; line-height: 50px;"></i>
+                                            <div style="overflow: hidden;">
+                                                <p>${kommTekst} <button class="copy-btn" data-text="${encodeURIComponent(komm.tekst)}" title="Kopeeri"><i class="fas fa-copy"></i></button></p>
+                                                <small>${new Date(komm.aeg * 1000).toLocaleString()}</small>
+                                            </div>
+                                        </div>`;
                                 });
                                 failideHtml += fileCommDiv.outerHTML;
                             }
@@ -1369,7 +1433,7 @@ if (isset($_GET['action'])) {
                     kommentaarideHtml += '</div>';
 
                     div.innerHTML = `
-                        <div class="postitus-text">${tekst}</div>
+                        <div class="postitus-text">${tekst} <button class="copy-btn" data-text="${encodeURIComponent(postitus.tekst)}" title="Kopeeri"><i class="fas fa-copy"></i></button></div>
                         <div class="postitus-timestamp">${new Date(postitus.aeg * 1000).toLocaleString()}</div>
                         <button class="edit-btn" data-post-id="${postitus.id}">Muuda</button>
                         <button onclick="PostitusteHaldur.kustutaPostitus(${postitus.id})">Kustuta</button>
@@ -1392,8 +1456,30 @@ if (isset($_GET['action'])) {
                         e.preventDefault();
                         const id = parseInt(link.dataset.id);
                         const puuId = link.dataset.puuId ? parseInt(link.dataset.puuId) : null;
-                        console.log('Postituse link klikitud:', { id, puuId });
+                        const tekst = link.textContent;
+                        JooksevHaldur.lisaLink('postitus', id, puuId, tekst);
                         AjaluguHaldur.liiguKirjeni('postitus', id, puuId);
+                    });
+                });
+
+                // Lisa kopeerimise funktsionaalsus
+                document.querySelectorAll('.copy-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const tekst = decodeURIComponent(btn.dataset.text);
+                        const tempInput = document.createElement('textarea');
+                        tempInput.value = tekst;
+                        document.body.appendChild(tempInput);
+                        tempInput.select();
+                        try {
+                            document.execCommand('copy');
+                            btn.innerHTML = '<i class="fas fa-check"></i>';
+                            setTimeout(() => btn.innerHTML = '<i class="fas fa-copy"></i>', 1000);
+                        } catch (err) {
+                            console.error('Kopeerimine ebaõnnestus:', err);
+                            alert('Kopeerimine ebaõnnestus!');
+                        } finally {
+                            document.body.removeChild(tempInput);
+                        }
                     });
                 });
 
@@ -1424,7 +1510,7 @@ if (isset($_GET['action'])) {
                         });
                     html += `
                         <div class="kommentaar" id="kommentaar-${komm.id}" data-komm-id="${komm.id}">
-                            <p>${kommTekst}</p>
+                            <p>${kommTekst} <button class="copy-btn" data-text="${encodeURIComponent(komm.tekst)}" title="Kopeeri"><i class="fas fa-copy"></i></button></p>
                             <small>${new Date(komm.aeg * 1000).toLocaleString()}</small>
                             <button onclick="PostitusteHaldur.toggleVasta(${komm.id}, ${postitusId})">Vasta</button>
                             <button onclick="PostitusteHaldur.toggleMuudaKommentaar(${komm.id})">Muuda</button>
@@ -1504,7 +1590,7 @@ if (isset($_GET['action'])) {
                             const puuId = targetPost ? targetPost.puu_id : null;
                             return `<a href="#postitus-${p2}" onclick="AjaluguHaldur.liiguKirjeni('postitus', ${p2}, ${puuId || 'null'}); return false;">${p1}</a>`;
                         });
-                    postTekstDiv.innerHTML = `${tekst} <small>${new Date(postitus.aeg * 1000).toLocaleString()}</small>`;
+                    postTekstDiv.innerHTML = `${tekst} <button class="copy-btn" data-text="${encodeURIComponent(postitus.tekst)}" title="Kopeeri"><i class="fas fa-copy"></i></button> <small>${new Date(postitus.aeg * 1000).toLocaleString()}</small>`;
                 } else {
                     postTekstDiv.innerHTML = '<p>Postitust ei leitud.</p>';
                 }
@@ -1514,7 +1600,28 @@ if (isset($_GET['action'])) {
                 modal.onclick = (e) => {
                     if (e.target === modal) modal.classList.remove('active');
                 };
-                this.lisaSoovitusKuulajad(modal); // Add listeners to modal textareas
+                this.lisaSoovitusKuulajad(modal);
+
+                // Lisa kopeerimise funktsionaalsus modaalile
+                modal.querySelectorAll('.copy-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const tekst = decodeURIComponent(btn.dataset.text);
+                        const tempInput = document.createElement('textarea');
+                        tempInput.value = tekst;
+                        document.body.appendChild(tempInput);
+                        tempInput.select();
+                        try {
+                            document.execCommand('copy');
+                            btn.innerHTML = '<i class="fas fa-check"></i>';
+                            setTimeout(() => btn.innerHTML = '<i class="fas fa-copy"></i>', 1000);
+                        } catch (err) {
+                            console.error('Kopeerimine ebaõnnestus:', err);
+                            alert('Kopeerimine ebaõnnestus!');
+                        } finally {
+                            document.body.removeChild(tempInput);
+                        }
+                    });
+                });
             },
 
             async kuvaPildiKommentaarid(path) {
@@ -1609,9 +1716,15 @@ if (isset($_GET['action'])) {
 
             async toggleMuudaKommentaar(id) {
                 const kommDiv = document.getElementById(`kommentaar-${id}`);
+                if (!kommDiv) return;
+
                 const p = kommDiv.querySelector('p');
-                const origTekst = p.childNodes[0].textContent.trim(); // Original text
-                const origAeg = p.querySelector('small').textContent; // Original timestamp
+                const origHtml = p.innerHTML; // Salvestame kogu algse HTML-i
+                // Eraldame teksti ja aja täpsemalt
+                const small = p.querySelector('small');
+                const origAeg = small ? small.textContent : '';
+                const origTekst = p.textContent.replace(origAeg, '').trim().replace(/Vasta\s*Muuda\s*Kustuta\s*$/, ''); // Eemaldame nupud ja aeg
+
                 if (p.querySelector('textarea')) return;
 
                 const textarea = document.createElement('textarea');
@@ -1629,10 +1742,7 @@ if (isset($_GET['action'])) {
                 const cancelBtn = document.createElement('button');
                 cancelBtn.textContent = 'Tühista';
                 cancelBtn.onclick = () => {
-                    p.innerHTML = `${origTekst} <small>${origAeg}</small>
-                        <button onclick="PostitusteHaldur.toggleMuudaKommentaar(${id})">Muuda</button>
-                        <button onclick="PostitusteHaldur.toggleVasta(${id}, ${kommDiv.closest('.postitus').id.split('-')[1]})">Vasta</button>
-                        <button onclick="PostitusteHaldur.kustutaKommentaar(${id})">Kustuta</button>`;
+                    p.innerHTML = origHtml; // Taastame originaalse HTML-i
                 };
                 p.appendChild(cancelBtn);
             },
@@ -1651,8 +1761,12 @@ if (isset($_GET['action'])) {
                 if (!kommDiv) return;
 
                 const p = kommDiv.querySelector('p');
-                const origTekst = p.childNodes[0].textContent.trim(); // Get only the text node before <small>
-                const origAeg = p.querySelector('small').textContent;
+                const origHtml = p.innerHTML; // Salvestame kogu HTML-i
+                const tekstNode = p.childNodes[0]; // Esimene tekstisõlm
+                const origTekst = tekstNode && tekstNode.nodeType === Node.TEXT_NODE ? tekstNode.textContent.trim() : '';
+                const small = p.querySelector('small');
+                const origAeg = small ? small.textContent : ''; // Kontrollime, kas small on olemas
+
                 if (p.querySelector('textarea')) return;
 
                 const textarea = document.createElement('textarea');
@@ -1670,12 +1784,11 @@ if (isset($_GET['action'])) {
                 const cancelBtn = document.createElement('button');
                 cancelBtn.textContent = 'Tühista';
                 cancelBtn.onclick = () => {
-                    p.innerHTML = `${origTekst} <small>${origAeg}</small>
-                        <button onclick="PostitusteHaldur.toggleMuudaPildiKommentaar(${id}, '${path}')">Muuda</button>
-                        <button onclick="PostitusteHaldur.kustutaPildiKommentaar(${id}, '${path}')">Kustuta</button>`;
+                    p.innerHTML = origHtml; // Taastame algse HTML-i
                 };
                 p.appendChild(cancelBtn);
             },
+
 
             async salvestaPildiKommentaarMuudatus(id, path) {
                 const konteiner = document.getElementById('pildi-kommentaarid');
@@ -1714,83 +1827,12 @@ if (isset($_GET['action'])) {
             }
         };
 
-        // Failide sisendi kuulamine
-        document.addEventListener('DOMContentLoaded', () => {
-            const fileBtn = document.querySelector('.file-upload-btn');
-            const fileInput = document.getElementById('faili-sisend');
-            fileBtn.addEventListener('click', () => fileInput.click());
-        });
-
-        // Otsingu haldamine
-        document.getElementById('otsing').addEventListener('input', async (e) => {
-            const query = e.target.value;
-            const tulemused = document.getElementById('otsingu-tulemused');
-            if (!query) {
-                tulemused.innerHTML = '';
-                return;
-            }
-            const data = await apiKutse('search', { query: encodeURIComponent(query) });
-            tulemused.innerHTML = data.map(t => {
-                let kuvatavTekst = '';
-                switch (t.type) {
-                    case 'puu':
-                        kuvatavTekst = `${t.tee} (${t.nimi})`;
-                        break;
-                    case 'postitus':
-                        kuvatavTekst = `${t.tee}->Postituse tekst->${t.tekst}`;
-                        break;
-                    case 'pilt':
-                        kuvatavTekst = `${t.tee}->Postituse pilt->${t.tekst}`;
-                        break;
-                    case 'fail':
-                        kuvatavTekst = `${t.tee}->Postituse fail->${t.tekst}`;
-                        break;
-                    case 'kommentaar':
-                        kuvatavTekst = `${t.tee}->Postituse kommentaar->${t.tekst}`;
-                        break;
-                    case 'pildi_kommentaar':
-                        kuvatavTekst = `${t.tee}->Postituse faili/pildi kommentaar->${t.tekst}`;
-                        break;
-                }
-                return `
-                    <div class="otsingu-tulemus" data-type="${t.type}" data-id="${t.id}" data-puu-id="${t.puu_id}" onclick="PuuHaldur.valiSõlm(${t.puu_id}, '${t.type}', ${t.id})">
-                        ${kuvatavTekst}
-                    </div>
-                `;
-            }).join('');
-        });
-
-        //Klahvi navigatsioon
-        document.addEventListener('keydown', (e) => {
-            const tulemused = document.querySelectorAll('.otsingu-tulemus');
-            if (!tulemused.length) return;
-            let aktiivne = document.querySelector('.otsingu-tulemus.active');
-            let indeks = aktiivne ? Array.from(tulemused).indexOf(aktiivne) : -1;
-
-            if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                indeks = (indeks + 1) % tulemused.length;
-                if (aktiivne) aktiivne.classList.remove('active');
-                tulemused[indeks].classList.add('active');
-            } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                indeks = (indeks - 1 + tulemused.length) % tulemused.length;
-                if (aktiivne) aktiivne.classList.remove('active');
-                tulemused[indeks].classList.add('active');
-            } else if (e.key === 'Enter' && indeks >= 0) {
-                e.preventDefault();
-                const valitud = tulemused[indeks];
-                PuuHaldur.valiSõlm(parseInt(valitud.dataset.puuId), valitud.dataset.type, parseInt(valitud.dataset.id));
-            } else if (e.key === 'Escape') {
-                document.getElementById('otsingu-tulemused').innerHTML = '';
-            }
-        });
-
         const OtsinguHaldur = {
             async otsi(query) {
                 const postitused = await apiKutse('get_postitused');
                 const tulemused = [];
 
+                // Otsi postitustest, failidest, piltidest ja kommentaaridest
                 postitused.forEach(post => {
                     if (post.tekst.toLowerCase().includes(query.toLowerCase())) {
                         tulemused.push({
@@ -1852,6 +1894,25 @@ if (isset($_GET['action'])) {
                     });
                 });
 
+                // Otsi puu sõlmedest
+                const otsiPuuSõlmi = (sõlmed) => {
+                    sõlmed.forEach(sõlm => {
+                        if (sõlm.nimi.toLowerCase().includes(query.toLowerCase())) {
+                            const onLapsi = sõlm.lapsed && sõlm.lapsed.length > 0;
+                            tulemused.push({
+                                tüüp: onLapsi ? 'oks' : 'leht',
+                                id: sõlm.id,
+                                puuId: sõlm.id, // Kasutame sõlme ID-d puuId-na
+                                tekst: `${onLapsi ? 'Oks' : 'Leht'}: ${sõlm.nimi}`
+                            });
+                        }
+                        if (sõlm.lapsed && sõlm.lapsed.length > 0) {
+                            otsiPuuSõlmi(sõlm.lapsed);
+                        }
+                    });
+                };
+                otsiPuuSõlmi(Andmed.puu);
+
                 return tulemused;
             },
 
@@ -1871,7 +1932,6 @@ if (isset($_GET['action'])) {
                     konteiner.appendChild(div);
                 });
 
-                // Lisa klikisündmused ja klaviatuurinavigatsioon
                 const lingid = konteiner.querySelectorAll('.otsingu-link');
                 lingid.forEach(link => {
                     link.addEventListener('click', (e) => {
@@ -1879,7 +1939,8 @@ if (isset($_GET['action'])) {
                         const tüüp = link.dataset.tüüp;
                         const id = parseInt(link.dataset.id);
                         const puuId = link.dataset.puuId ? parseInt(link.dataset.puuId) : null;
-                        console.log('Otsingu link klikitud:', { tüüp, id, puuId });
+                        const tekst = link.textContent;
+                        JooksevHaldur.lisaLink(tüüp, id, puuId, tekst);
                         AjaluguHaldur.liiguKirjeni(tüüp, id, puuId);
                         konteiner.innerHTML = '';
                     });
@@ -1905,7 +1966,7 @@ if (isset($_GET['action'])) {
 
                 document.addEventListener('keydown', function handler(e) {
                     if (!konteiner.children.length) {
-                        document.removeEventListener('keydown', handler); // Eemalda kuulaja, kui tulemused kaovad
+                        document.removeEventListener('keydown', handler);
                         return;
                     }
 
@@ -2058,6 +2119,9 @@ if (isset($_GET['action'])) {
                     const postitused = await apiKutse('get_postitused');
                     const tegevused = [];
 
+                    // Pildi formaatide loetelu
+                    const pildiFormaadid = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/bmp'];
+
                     postitused.forEach(post => {
                         if (filters.postitused.checked) {
                             tegevused.push({
@@ -2071,7 +2135,8 @@ if (isset($_GET['action'])) {
 
                         const manused = JSON.parse(post.manused || '[]');
                         manused.forEach(manus => {
-                            if (manus.type.startsWith('image/') && filters.pildid.checked) {
+                            const onPilt = pildiFormaadid.includes(manus.type);
+                            if (onPilt && filters.pildid.checked) {
                                 tegevused.push({
                                     aeg: post.aeg * 1000,
                                     tekst: `<b style="color: #181bd7;">Pilt</b>: ${manus.path.split('/').pop()} - ${post.tekst.substring(0, 50)}...`,
@@ -2079,7 +2144,7 @@ if (isset($_GET['action'])) {
                                     id: post.id,
                                     puuId: post.puu_id
                                 });
-                            } else if (filters.failid.checked) {
+                            } else if (!onPilt && filters.failid.checked) {
                                 tegevused.push({
                                     aeg: post.aeg * 1000,
                                     tekst: `<b style="color: #5abd2c;">Fail</b>: ${manus.path.split('/').pop()} - ${post.tekst.substring(0, 50)}...`,
@@ -2140,6 +2205,7 @@ if (isset($_GET['action'])) {
                         link.addEventListener('click', this.handleLinkClick.bind(this));
                     });
                 };
+                
 
                 this.handleLinkClick = (e) => {
                     e.preventDefault();
@@ -2147,6 +2213,8 @@ if (isset($_GET['action'])) {
                     const id = parseInt(e.target.dataset.id);
                     const puuId = e.target.dataset.puuId ? parseInt(e.target.dataset.puuId) : null;
                     console.log('Ajalugu link klikitud:', { tüüp, id, puuId });
+                    const tekst = e.target.textContent.split(' - ')[0];
+                    JooksevHaldur.lisaLink(tüüp, id, puuId, tekst);
                     this.liiguKirjeni(tüüp, id, puuId);
                 };
 
@@ -2156,6 +2224,45 @@ if (isset($_GET['action'])) {
                 });
             }
         };
+
+        //Jooksev haldur
+        const JooksevHaldur = {
+            lingid: [],
+            async lisaLink(tüüp, id, puuId, tekst) {
+                const aeg = new Date().getTime();
+                const lühitekst = tekst.length > 20 ? tekst.substring(0, 17) + '...' : tekst;
+                this.lingid.unshift({ tüüp, id, puuId, tekst: lühitekst, aeg });
+                if (this.lingid.length > 20) this.lingid.pop();
+                console.log('Link lisatud:', { tüüp, id, puuId, tekst: lühitekst });
+                this.kuvaJooksev();
+            },
+            async kuvaJooksev() {
+                const konteiner = document.getElementById('jooksev-sisu');
+                konteiner.innerHTML = '';
+                this.lingid.forEach(link => {
+                    const div = document.createElement('div');
+                    div.className = 'jooksev-kirje';
+                    div.innerHTML = `
+                        <a href="#" data-tüüp="${link.tüüp}" data-id="${link.id}" data-puu-id="${link.puuId || ''}">
+                            ${link.tekst} <small>${new Date(link.aeg).toLocaleTimeString()}</small>
+                        </a>
+                    `;
+                    konteiner.appendChild(div);
+                });
+                const lingid = konteiner.querySelectorAll('a');
+                lingid.forEach(link => {
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const tüüp = link.dataset.tüüp;
+                        const id = parseInt(link.dataset.id);
+                        const puuId = link.dataset.puuId ? parseInt(link.dataset.puuId) : null;
+                        console.log('Jooksev link klikitud:', { tüüp, id, puuId });
+                        AjaluguHaldur.liiguKirjeni(tüüp, id, puuId);
+                    });
+                });
+            }
+        };
+
         // Alglaadimine
         document.addEventListener('DOMContentLoaded', () => {
             PuuHaldur.laadiPuu();
