@@ -543,12 +543,12 @@ if (isset($_GET['action'])) {
         .postituse-redaktor { margin-bottom: 20px; }
         .postituse-redaktor textarea {width: 100%;height: 150px;resize: vertical;padding: 10px;border: 1px solid #ccc;border-radius: 4px;font-size: 16px;box-sizing: border-box;white-space: pre-wrap;overflow-wrap: break-word;background: #fff;}
         .postituse-redaktor textarea:focus {outline: none;border-color: #f0f0f0;box-shadow: 0 0 5px rgba(26, 115, 232, 0.3);}
-        .postituse-redaktor button {padding: 8px 16px;background: #fff;color: #9d9d9d;border: none;border-radius: 4px;cursor: pointer;}
+        .postituse-redaktor button {padding: 8px 16px;background:transparent;color: #9d9d9d;border: none;border-radius: 4px;cursor: pointer;}
         .postituse-redaktor button:hover {background: #6cd7a5;}
         .postitus{box-shadow: 0 4px 28px 0 rgb(210, 210, 210), 0 6px 20px 0 rgb(255, 255, 255);border-radius: 8px;margin-bottom: 10px;padding: 15px;background: #fff;}
         .postitus-text {white-space: pre-wrap;overflow-wrap: break-word;margin: 0 0 10px 0;}
         .postitus-timestamp {color: #666;font-size: 12px;}
-        .postitus button {padding: 5px 10px;background: #fff;color: #9d9d9d;border: none;border-radius: 4px;cursor: pointer;}
+        .postitus button {padding: 5px 10px;background:transparent;color: #9d9d9d;border: none;border-radius: 4px;cursor: pointer;}
         .postitus button:hover {background: #6cd7a5;}
         .galerii { display: list-item; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
         .galerii-üksus img { width: 50%;height: auto; border-radius: 4px; cursor: pointer; }
@@ -568,7 +568,8 @@ if (isset($_GET['action'])) {
         .kommentaar { border-top: 1px solid #ddd; position: relative; }
         .kommentaar small { color: #666; }
         .kommentaar button { margin-left: 10px; }
-        .kommentaari-textarea{width: 100%;  padding-bottom: 10px;margin-bottom: 10px;}
+        .kommentaari-textarea:focus {outline: none;border-color: #f0f0f0;box-shadow: 0 0 5px rgba(26, 115, 232, 0.3);}
+        .kommentaari-textarea{width: 100%;padding-bottom:10px;margin-bottom: 10px;height:50px;resize:vertical;border:1px solid #ccc;border-radius: 4px;font-size: 16px;box-sizing: border-box;white-space: pre-wrap;overflow-wrap: break-word;background: #fff;}
         .kommentaari-editor-container {height: 100px;border: 1px solid #ccc;border-radius: 4px;width: 100%;box-sizing: border-box;}
         .kommentaaride-lapsed{margin-left: 41px;}
         #pildi-kommentaar-tekst{width: 100%;height: 10%;}
