@@ -23,6 +23,8 @@ Rakendus kasutab SQLite andmebaasi ja PHP-d, mistõttu on see lihtne käivitada 
 ## Hobi korras ettevõtmine
 Portiaz 5 on hobi korras loodud projekt, mille eesmärk on pakkuda praktilist ja kohandatavat tööriista isiklikuks kasutamiseks. See on arendatud lõbu ja õppimise pärast, kuid on piisavalt robustne igapäevaseks tööks.
 
+Vigu koodis, ülesehituses, stiilis ei maksa väga südamesse võtta. Kest on olemas, keegi ei keela oma äranägemise järgi asju ümber kohandada.
+
 ## Paigaldus
 
 ### Nõuded
