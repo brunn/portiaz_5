@@ -18,12 +18,9 @@ Olen lisanud krüpto graafikute võimaluse Tradingview poolselt, et näiteks kor
 - **Automaatsoovitused**: Tekstisisestus pakub vihjeid postituste linkimiseks.
 - **Muutmine ja kustutamine**: Kõiki elemente (oksi, lehti, postitusi, kommentaare) saab muuta või eemaldada, ajakohastades automaatselt ajatempleid.
 - **Andmebaasid**: Peabaas ning krüpto sümbolite ja projektide baasid.
-  - **Projekti baas**: Ei lisa päisesse graafikut, muu funktsionaalsus sama.  
-    [Ava projekti baas](http://www.koduleht.eu/portiaz_5/index.php?p=PROJEKTI_NIMI)
-  - **Sümboli baas**: Lisatakse krüpto graafik, muu funktsionaalsus sama.  
-    [Ava sümboli baas](http://www.koduleht.eu/portiaz_5/index.php?s=SYMBOLI_NIMETUS)
-  - **Peabaas**: Kui pole valitud projekti ega sümboli põhist pöördumist.  
-    [Ava peabaas](http://www.koduleht.eu/portiaz_5/index.php)
+  - **Projekti baas**: Ei lisa päisesse graafikut, muu funktsionaalsus sama.http://www.koduleht.eu/portiaz_5/index.php?p=PROJEKTI_NIMI
+  - **Sümboli baas**: Lisatakse krüpto graafik, muu funktsionaalsus sama. http://www.koduleht.eu/portiaz_5/index.php?s=SYMBOLI_NIMETUS
+  - **Peabaas**: Kui pole valitud projekti ega sümboli põhist pöördumist. http://www.koduleht.eu/portiaz_5/index.php
 
 ## Otstarve lokaalses arvutis
 Portiaz 5 sobib suurepäraselt järgmisteks vajadusteks:
