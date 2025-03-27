@@ -5,7 +5,7 @@ See pakub hierarhilist puustruktuuri (oksad ja lehed), kuhu saab lisada postitus
 Rakendus on mõeldud paindlikuks kasutamiseks dokumenteerimisel, märkmete pidamisel või loominguliste projektide korraldamisel.
 Jooksva info kogumiseks, korraldamiseks.
 
-Olen lisanud krüpto graafikute võimaluse Tradingview poolselt, et näiteks korralada teatud sümbolitele infopanka.
+Olen lisanud krüpto graafikute võimaluse Tradingview poolselt, et näiteks korraldada teatud sümbolitele infopanka.
 
 
 ## Funktsionaalsus
