@@ -9,6 +9,7 @@ Olen lisanud krüpto graafikute võimaluse Tradingview poolselt, et näiteks kor
 
 
 ## Funktsionaalsus
+
 - **Hierarhiline struktuur**: Looge piiramatu sügavusega oksad ja lehed (nt `Oks1/Leht1/Leht2`), et korraldada sisu loogiliselt.
 - **Postitused ja kommentaarid**: Lisage teksti, faile ning pesastatud kommentaare, mis toetavad Markdown-laadseid viiteid (`[tekst](#postitus-id)`).
 - **Failihaldus**: Laadige üles pilte ja muid faile, lisage neile kommentaare modal-vaates.
@@ -17,9 +18,13 @@ Olen lisanud krüpto graafikute võimaluse Tradingview poolselt, et näiteks kor
 - **Automaatsoovitused**: Tekstisisestus pakub vihjeid postituste linkimiseks.
 - **Muutmine ja kustutamine**: Kõiki elemente (oksi, lehti, postitusi, kommentaare) saab muuta või eemaldada, ajakohastades automaatselt ajatempleid.
 - **Andmebaasid**: Peabaas ning krüpto sümbolite ja projektide baasid.
--- **Projekti baas**: Ei lisa päisesse graafikut, muu funktsionaalsuses sama. http://www.koduleht.eu/portiaz_5/index.php?p=PROJEKTI_NIMI
--- **Sümboli baas***: Lisatakse krüpto graafik, muu funktsionalsus sama. http://www.koduleht.eu/portiaz_5/index.php?s=SYMBOLI_NIMETUS
--- **Peabaas**: Kui pole valitud projekti ega sümboli põhist pöördumist. http://www.koduleht.eu/portiaz_5/index.php
+  - **Projekti baas**: Ei lisa päisesse graafikut, muu funktsionaalsus sama.  
+    [Ava projekti baas](http://www.koduleht.eu/portiaz_5/index.php?p=PROJEKTI_NIMI)
+  - **Sümboli baas**: Lisatakse krüpto graafik, muu funktsionaalsus sama.  
+    [Ava sümboli baas](http://www.koduleht.eu/portiaz_5/index.php?s=SYMBOLI_NIMETUS)
+  - **Peabaas**: Kui pole valitud projekti ega sümboli põhist pöördumist.  
+    [Ava peabaas](http://www.koduleht.eu/portiaz_5/index.php)
+
 ## Otstarve lokaalses arvutis
 Portiaz 5 sobib suurepäraselt järgmisteks vajadusteks:
 - **Isiklikud märkmed**: Korraldage mõtted, ideed või õppematerjalid hierarhilisse süsteemi.
