@@ -35,6 +35,15 @@ Vigu koodis, ülesehituses, stiilis ei maksa väga südamesse võtta. Kest on ol
 ```bash
 apt install php-sqlite3
 ```
+#### Lisad
+```bash
+apt install pandoc
+apt install unoconv
+composer require erusev/parsedown 
+composer require phpoffice/phpspreadsheet
+apt install libreoffice --no-install-recommends
+apt install ttf-mscorefonts-installer fonts-liberation
+```
 ### Kaustade seaded
 ```bash
 chmod -R 777 /var/www/html/portiaz_5/
