@@ -47,8 +47,8 @@ apt install ttf-mscorefonts-installer fonts-liberation
 ### Kaustade seaded
 ```bash
 chmod -R 777 /var/www/html/portiaz_5/
-# või kui oled projekti kaustas:
-sudo chmod -R 777 "$PWD"
+cd /var/www/html/portiaz_5/
+chmod -R 777 "$PWD"
 ```
 ### Composer
 ```bash
@@ -56,9 +56,10 @@ composer require brunn/portiaz_5:^1.0
 ```
 ### Git
 ```bash
-git clone git@github.com:brunn/portiaz_5.git
+mkdir  var/www/html/kaust
+cd var/www/html/kaust
+git clone git@github.com:brunn/portiaz_5.git .
 ```
-
 
 # Peavaade
 ![Kirjeldus](doc/ajaloo_vaade.png)
