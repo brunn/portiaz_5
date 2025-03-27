@@ -32,7 +32,7 @@ Portiaz 5 sobib suurepäraselt järgmisteks vajadusteks:
 - **Päevik või logi**: Jälgige tegevusi koos failide ja märkmetega, näiteks hobiprojektide edenemist.
 - **Teadmistepank**: Looge kohalik wiki-stiilis baas, mis ei vaja internetiühendust.
 
-Rakendus kasutab SQLite andmebaasi ja PHP-d, mistõttu on see lihtne käivitada lokaalses serverikeskkonnas (nt XAMPP, WAMP).
+Rakendus kasutab SQLite andmebaasi ja PHP-d, mistõttu on see lihtne käivitada lokaalses serverikeskkonnas (nt XAMPP, WAMP, LAMP).
 
 ## Hobi korras ettevõtmine
 Portiaz 5 on hobi korras loodud projekt, mille eesmärk on pakkuda praktilist ja kohandatavat tööriista isiklikuks kasutamiseks. See on arendatud lõbu ja õppimise pärast, kuid on piisavalt robustne igapäevaseks tööks.
