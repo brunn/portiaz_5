@@ -93,4 +93,6 @@ Märkmik lokaalseks kasutamiseks
 Projekt on avaldatud MIT litsentsi all, mis lubab vaba kasutamist, muutmist ja jagamist vastavalt litsentsi tingimustele. Vaata täpsemat infot litsentsifailist.
 # Panustamine
 
-Kuna tegemist on hobiprojektiga, on kõik ettepanekud ja panused teretulnud! Ava issue või saada pull request, kui soovid midagi lisada või parandada.
+Kuna tegemist on hobiprojektiga, on kõik ettepanekud ja panused teretulnud! Alternatiive on tuhandeid, nagu ka vajadusi. Gpt'sid ei jõua kokku lugedagi. 
+Asja uba ise aga on hoopis ülesehituse intuitiiv spetsiifilise konteksti funktsionaalsuse saavutamises. 
+Kui sa kasutad seda midagi, tunned et eesmärgid liiguvad asja abil lähemale, mitte kaugemale, võib liigutada seda midagi kõrgemale tasemele.
