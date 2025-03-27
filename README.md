@@ -1,6 +1,12 @@
 # Portiaz 5
 
-**Portiaz 5** on veebipõhine märkmik, mis on loodud isikliku teadmiste ja sisu haldamiseks lokaalses arvutis. See pakub hierarhilist puustruktuuri (oksad ja lehed), kuhu saab lisada postitusi, kommentaare, faile (nt pilte) ning pildi kommentaare. Rakendus on mõeldud paindlikuks kasutamiseks dokumenteerimisel, märkmete pidamisel või loominguliste projektide korraldamisel.
+**Portiaz 5** on veebipõhine märkmik, mis on loodud isikliku teadmiste ja sisu haldamiseks lokaalses arvutis. 
+See pakub hierarhilist puustruktuuri (oksad ja lehed), kuhu saab lisada postitusi, kommentaare, faile (nt pilte) ning piltidele,failidele kommentaare, märksõnu. 
+Rakendus on mõeldud paindlikuks kasutamiseks dokumenteerimisel, märkmete pidamisel või loominguliste projektide korraldamisel.
+Jooksva info kogumiseks, korraldamiseks.
+
+Olen lisanud krüpto graafikute võimaluse Tradingview poolselt, et näiteks korralada teatud sümbolitele infopanka.
+
 
 ## Funktsionaalsus
 - **Hierarhiline struktuur**: Looge piiramatu sügavusega oksad ja lehed (nt `Oks1/Leht1/Leht2`), et korraldada sisu loogiliselt.
@@ -10,7 +16,10 @@
 - **Ajalugu**: Jälgige viimaseid tegevusi (postitused, kommentaarid, failid) koos suunamisega vastavale sisule.
 - **Automaatsoovitused**: Tekstisisestus pakub vihjeid postituste linkimiseks.
 - **Muutmine ja kustutamine**: Kõiki elemente (oksi, lehti, postitusi, kommentaare) saab muuta või eemaldada, ajakohastades automaatselt ajatempleid.
-
+- **Andmebaasid**: Peabaas ning krüpto sümbolite ja projektide baasid.
+-- **Projekti baas**: Ei lisa päisesse graafikut, muu funktsionaalsuses sama. http://www.koduleht.eu/portiaz_5/index.php?p=PROJEKTI_NIMI
+-- **Sümboli baas***: Lisatakse krüpto graafik, muu funktsionalsus sama. http://www.koduleht.eu/portiaz_5/index.php?s=SYMBOLI_NIMETUS
+-- **Peabaas**: Kui pole valitud projekti ega sümboli põhist pöördumist. http://www.koduleht.eu/portiaz_5/index.php
 ## Otstarve lokaalses arvutis
 Portiaz 5 sobib suurepäraselt järgmisteks vajadusteks:
 - **Isiklikud märkmed**: Korraldage mõtted, ideed või õppematerjalid hierarhilisse süsteemi.
