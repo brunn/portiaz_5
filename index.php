@@ -7,8 +7,32 @@ ini_set('error_log',__DIR__ . '/error.log');
 function logError($message) {
     file_put_contents(__DIR__ . '/error.log', date('Y-m-d H:i:s') . " - $message\n", FILE_APPEND);
 }
-function getDatabase() {
-    $dbPath = __DIR__ . '/ANDMEBAAS_PUU.db';
+$baseDir = __DIR__;
+$dbPath = $baseDir . '/ANDMEBAAS_PUU.db';
+$projekti_nimetus = 'ANDMEBAAS';
+$uploadDir = '';
+
+if (isset($_REQUEST['s']) || isset($_REQUEST['p'])) {
+    if (isset($_REQUEST['s'])) {
+        $projekti_nimetus = strtoupper($_REQUEST['s']);
+        $symbol = 'GATEIO:' . strtoupper($_REQUEST['s'] . 'USDT' ?? 'GATEIO:FOMOUSDT');
+    } elseif (isset($_REQUEST['p'])) {
+        $symbol = null;
+        $projekti_nimetus = preg_replace('/[^a-zA-Z0-9]/', '_', $_REQUEST['p']);
+        $projekti_nimetus = strtoupper($projekti_nimetus);
+    }
+    $projectDir = $baseDir . '/' . $projekti_nimetus;
+    $uploadDir = $projectDir . '/uploads';
+    $dbPath = $projectDir . '/' . $projekti_nimetus . '.db';
+    if (!is_dir($projectDir)) {mkdir($projectDir, 0755, true);}
+    if (!is_dir($uploadDir)) {mkdir($uploadDir, 0755, true);}
+} else {
+    $uploadDir = __DIR__ . '/uploads';
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0755, true);
+    }
+}
+function getDatabase($dbPath) {
     if (!is_writable(dirname($dbPath))) {
         die(json_encode(['status' => 'error', 'message' => 'Database directory not writable']));
     }
@@ -52,11 +76,9 @@ function getDatabase() {
 }
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
     header('Content-Type: application/json');
-    $uploadDir = __DIR__ . '/uploads/';
-    if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
-    $file = $_FILES['file'];
-    $fileName = time() . '_' . basename($file['name']);
-    $targetPath = $uploadDir . $fileName;
+    $file         = $_FILES['file'];
+    $fileName     = time() . '_' . basename($file['name']);
+    $targetPath   = $uploadDir . '/' . $fileName;
     $relativePath = '/uploads/' . $fileName;
     if (move_uploaded_file($file['tmp_name'], $targetPath)) {
         echo json_encode([
@@ -81,7 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         echo json_encode(['status' => 'error', 'message' => 'Invalid manused JSON']);
         exit;
     }
-    $db = getDatabase();
+    $db = getDatabase($dbPath);
     $stmt = $db->prepare('INSERT INTO postitused (puu_id, tekst, aeg, manused) VALUES (:puu_id, :tekst, :aeg, :manused)');
     $stmt->bindValue(':puu_id', $puu_id, SQLITE3_INTEGER);
     $stmt->bindValue(':tekst', $tekst, SQLITE3_TEXT);
@@ -94,7 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 if (isset($_GET['action'])) {
     header('Content-Type: application/json');
-    $db = getDatabase();
+    $db = getDatabase($dbPath);
     switch ($_GET['action']) {
         case 'get_puu':
             $result = $db->query('SELECT * FROM puu');
@@ -117,7 +139,7 @@ if (isset($_GET['action'])) {
             break;
         case 'delete_puu':
             $id = $_GET['id'] ?? 0;
-            $db = getDatabase();
+            $db = getDatabase($dbPath);
             $postitused = [];
             $result = $db->query('SELECT id, manused FROM postitused WHERE puu_id = ' . (int)$id);
             while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
@@ -192,7 +214,7 @@ if (isset($_GET['action'])) {
             break;
         case 'delete_post':
             $id = $_GET['id'] ?? 0;
-            $db = getDatabase();
+            $db = getDatabase($dbPath);
             $stmt = $db->prepare('SELECT manused FROM postitused WHERE id = :id');
             $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
             $result = $stmt->execute();
@@ -269,7 +291,7 @@ if (isset($_GET['action'])) {
             $query = mb_strtolower($query, 'UTF-8');
             $data = [];
             $uniqueIds = [];
-            $db = getDatabase();
+            $db = getDatabase($dbPath);
             function getPuuTee($db, $id, &$cache = []) {
                 if (isset($cache[$id])) return $cache[$id];
                 $tee = [];
@@ -380,7 +402,7 @@ if (isset($_GET['action'])) {
             $id = $_GET['id'] ?? 0;
             $tekst = urldecode($_GET['tekst'] ?? '');
             $aeg = time();
-            $db = getDatabase();
+            $db = getDatabase($dbPath);
             $stmt = $db->prepare('UPDATE postitused SET tekst = :tekst, aeg = :aeg WHERE id = :id');
             $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
             $stmt->bindValue(':tekst', $tekst, SQLITE3_TEXT);
@@ -392,7 +414,7 @@ if (isset($_GET['action'])) {
             $id = $_GET['id'] ?? 0;
             $tekst = urldecode($_GET['tekst'] ?? '');
             $aeg = time();
-            $db = getDatabase();
+            $db = getDatabase($dbPath);
             $stmt = $db->prepare('UPDATE kommentaarid SET tekst = :tekst, aeg = :aeg WHERE id = :id');
             $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
             $stmt->bindValue(':tekst', $tekst, SQLITE3_TEXT);
@@ -404,7 +426,7 @@ if (isset($_GET['action'])) {
             $id = $_GET['id'] ?? 0;
             $tekst = urldecode($_GET['tekst'] ?? '');
             $aeg = time();
-            $db = getDatabase();
+            $db = getDatabase($dbPath);
             $stmt = $db->prepare('UPDATE pildi_kommentaarid SET tekst = :tekst, aeg = :aeg WHERE id = :id');
             $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
             $stmt->bindValue(':tekst', $tekst, SQLITE3_TEXT);
@@ -432,11 +454,28 @@ if (isset($_GET['action'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="mrcnet.ico">
+    <link rel="icon" type="image/png" sizes="16x16" href="doc/mrcnet.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="doc/mrcnet.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="doc/mrcnet.ico">
+    <link rel="icon" type="image/png" sizes="192x192" href="doc/mrcnet.ico">
+    <link rel="icon" type="image/png" sizes="512x512" href="doc/mrcnet.ico">
+    <link rel="manifest" href="doc/site.webmanifest">
     <title>Dokumentatsioon 2025</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://unpkg.com/vue@2.6.10/dist/vue.min.js"></script>
+    <script src="https://s3.tradingview.com/tv.js"></script>
     <style>
         body { margin: 0; font-family: Arial, sans-serif; height: 100vh; display: flex; flex-direction: column; background: #f0f0f0; }
-        header { background: #1a1a1a; color: white; padding: 10px; position: sticky; top: 0; z-index: 10; }
+        header { background: #ffffff; color: white; padding: 10px; position: sticky; top: 0; z-index: 10; }
+        #chart {
+            width: 100%;
+            height: 350px;
+            margin: auto;
+        }
+        .tradingview-widget-container {
+            width: 100%;
+        }
         #otsing { width: 100%; padding: 8px; font-size: 16px; border: none; border-radius: 4px; }
         #otsingu-tulemused { position: absolute; background: white; color: black; max-height: 200px; overflow-y: auto; width: 50%; border: 1px solid #ccc; z-index: 20; }
         .otsingu-tulemus {padding: 5px;cursor: pointer;white-space: nowrap;overflow: hidden;text-overflow: ellipsis;}
@@ -462,7 +501,7 @@ if (isset($_GET['action'])) {
         .galerii-üksus img { width: 50%;height: auto; border-radius: 4px; cursor: pointer; }
         .kommentaari-paan { background: #f0f0f0; padding: 5px; margin-top: 5px; border-radius: 4px; }
         .pesastatud-kommentaarid { margin-left: 20px; }
-        footer { background: #1a1a1a; color: white; padding: 10px; position: sticky; bottom: 0; }
+        footer { background: #ffffff; color: white; padding: 10px; position: sticky; bottom: 0; }
         .kontekstimenüü { position: absolute; background: white; border: 1px solid #ccc; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         .kontekstimenüü ul { list-style: none; padding: 0; margin: 0; }
         .kontekstimenüü li { padding: 8px 12px; cursor: pointer; }
@@ -551,12 +590,69 @@ if (isset($_GET['action'])) {
         .galerii-üksus img {width: 100%;height: 100%;cursor: pointer;}
         .galerii-üksus span {font-size: 12px;word-wrap: break-word;}
         .galerii { display: flex; flex-wrap: wrap; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1px; margin-top: 1px; }
-    </style>
+        header {background: #ffffff; padding: 10px; width: 100%; box-sizing: border-box; }
+        #otsing { width: 50%;padding: 8px;font-size: 16px;
+        border: none; border-radius: 4px;}
+        #otsingu-tulemused { position: absolute; background: white; color: black; max-height: 250px; overflow-y: auto;
+        width: 50%; border: 1px solid #ccc; z-index: 20; }
+        #chart {width: 100%;height: 400px;margin: auto;}
+        .tradingview-widget-container {width: 100%;}
+        .konteiner { display: flex; width: 100%; }
+        #puu-konteiner { width: 275px; background: #fff; padding: 10px; overflow-y: auto; }
+        #peasisu { flex: 1; padding: 5px; background: white; overflow-y: auto; }
+        footer { background: #ffffff; padding: 10px; width: 100%; box-sizing: border-box; }
+        #projekti_nimetus{font-size: 22px;font-weight: bold;position: absolute;float: right;color: black;display: flex;margin-left: 56%;margin-top: -32px;}
+        .upload-preview-container {margin-top: 10px;display: flex;flex-wrap: wrap;gap: 10px;}
+        .preview-item {position: relative;display: flex;align-items: center;padding: 5px;background: #f5f5f5;border-radius: 4px;}
+        .preview-item img {max-width: 100px;max-height: 100px;cursor: pointer;}
+        .preview-item span {margin-left: 5px;max-width: 150px;overflow: hidden;text-overflow: ellipsis;}
+        .remove-btn {margin-left: 5px;color: #ff4444;cursor: pointer;font-size: 16px;}
+        .remove-btn:hover {color: #cc0000;}
+        .progress-container {width: 100%;margin-top: 10px;background: #f0f0f0;border-radius: 4px;overflow: hidden;}
+        .progress-bar {height: 20px;background:rgb(27, 53, 28);width: 0%;transition: width 0.3s ease-in-out;text-align: center;color: white;line-height: 20px;}
+        #searchInput {font-size: 22px;font-weight: bold;color: #646464;padding: 5px;border-bottom: 1px solid #ccc;border-top: none;border-left: none;border-right: none;color: #c4c4c4;}
+        #otsing{outline: none;border-color: #f0f0f0;}
+        #otsing::placeholder {color: #c4c4c4;}
+        #searchInput::placeholder {color: #c4c4c4;}
+        #searchInput:focus {outline: none;border-color: #f0f0f0;box-shadow: 0 0 5px rgba(26, 115, 232, 0.3);}
+        #searchType {font-size: 22px;margin-left: 5px;padding: 5px;border: none;background-color: #fff;appearance: none;color: #c4c4c4;}
+        #searchType:focus {outline: none;border-color: #f0f0f0;box-shadow: 0 0 5px rgba(26, 115, 232, 0.3);}
+        .galerii-üksus-postitus, img{width: 100%;}
+</style>
 </head>
 <body>
     <header>
         <input type="text" id="otsing" placeholder="Otsi oksi, lehti, postitusi...">
         <div id="otsingu-tulemused" class="otsingu-tulemused"></div>
+
+        <div id="projekti_nimetus">
+            PROJEKTI NIMETUS
+        </div>
+        <div style="position: absolute; margin-left: 56%; margin-top: -32px;">
+            <div style="display: flex; align-items: center;">
+                <input 
+                    id="searchInput" 
+                    type="text" 
+                    placeholder="ANDMEBAAS" 
+                    style="font-size: 22px; font-weight: bold; color: #646464; padding: 5px; border-bottom: 1px solid #ccc;  border-top: none;  border-left: none;  border-right: none;color: #c4c4c4;"
+                    onkeypress="if(event.key === 'Enter') searchRedirect()"
+                >
+                <select 
+                    id="searchType" 
+                    style="font-size: 22px; margin-left: 5px; padding: 5px; border: none;background-color: #fff;"
+                    onchange="updatePlaceholder()"
+                >
+                    <option value="s">Symbol</option>
+                    <option value="p">Projekt</option>
+                </select>
+            </div>
+        </div>
+        <button id="toggle-chart" onclick="toggleChart()">Peida graafik</button>
+        <div id="app" style="display: none;">
+            <div class="tradingview-widget-container">
+                <div id="chart"></div>
+            </div>
+        </div>
     </header>
     <div class="konteiner">
         <div id="puu-konteiner"></div>
@@ -566,6 +662,10 @@ if (isset($_GET['action'])) {
                 <div class="file-upload-wrapper">
                     <button class="file-upload-btn">Laadi üles failid</button>
                     <input type="file" multiple id="faili-sisend" style="display: none;">
+                </div>
+                <div id="upload-preview" class="upload-preview-container"></div>
+                <div class="progress-container">
+                    <div class="progress-bar" id="upload-progress">0%</div>
                 </div>
                 <button onclick="PostitusteHaldur.lisaPostitus()">Postita</button>
             </div>
@@ -589,7 +689,6 @@ if (isset($_GET['action'])) {
             <div id="failide-sisu"></div>
             <div id="galerii-sisu" class="galerii"></div>
         </div>
-
     </div>
     <footer>
         <button onclick="PuuHaldur.LISA_UUS_OKS()">Lisa oks</button>
@@ -624,8 +723,77 @@ if (isset($_GET['action'])) {
         </div>
     </div>
     <script>
-        const BASE_URL = '<?php echo rtrim(dirname($_SERVER['PHP_SELF']), '/'); ?>';
-        const Andmed = {puu: [],valitudSõlm: null,laienenudSõlmed: new Set()};
+        function searchRedirect() {
+            const inputValue = document.getElementById('searchInput').value;
+            const searchType = document.getElementById('searchType').value;
+            
+            if (inputValue.trim() !== '') {
+                window.location.href = `index.php?${searchType}=${encodeURIComponent(inputValue)}`;
+            }
+        }
+        function updatePlaceholder() {
+            const searchType = document.getElementById('searchType').value;
+            const input = document.getElementById('searchInput');
+            input.placeholder = searchType === 's' ? 'Otsi sümbolit...' : 'Otsi projekti...';
+        }
+        let symboli_poordumine              = <?php echo isset($_REQUEST['s']) ? 'true' : 'false'; ?>;
+        function toggleChart() {
+            const chartDiv = document.getElementById('app');
+            const toggleBtn = document.getElementById('toggle-chart');
+            if (chartDiv.style.display === 'none') {
+                chartDiv.style.display = 'block';
+                toggleBtn.textContent = 'Peida graafik';
+            } else {
+                chartDiv.style.display = 'none';
+                toggleBtn.textContent = 'Näita graafik';
+            }
+        }
+        if (symboli_poordumine) {
+            let vue = new Vue({
+                el: '#app',
+                data: {
+                fullscreen: false
+                },
+                methods: {
+                    init() {
+                        let symbol = "<?php echo $symbol; ?>";
+                        console.log(symbol);
+                        new TradingView.widget({
+                            "autosize": true,
+                            "symbol": symbol,
+                            "show_fullscreen": true,
+                            "allowfullscreen": true,
+                            "interval": "D",
+                            "timezone": "Etc/UTC",
+                            "theme": "light",
+                            "style": "1",
+                            "locale": "en",
+                            "toolbar_bg": "#f1f3f6",
+                            "enable_publishing": false,
+                            "hide_side_toolbar": true,
+                            "side_toolbar_in_fullscreen_mode": true,
+                            "allow_symbol_change": true,
+                            "referral_id": "ToddChristensen",
+                            "container_id": "chart",
+                            "header_fullscreen_button": true,
+                            "showSymbolLabels": false
+                        });
+                    }
+                },
+                mounted() {
+                    this.init();
+                }
+            });
+        }else{
+            const toggleBtn = document.getElementById('toggle-chart');
+            toggleBtn.style.display = 'none';
+        }
+    </script>
+    <script>
+        const PROJEKTI_NIMI = '<?php echo htmlspecialchars($projekti_nimetus); ?>';
+        const JUUR_KAUST    = '<?php echo rtrim(dirname($_SERVER['PHP_SELF']), '/'); ?>';
+        const BASE_URL      = PROJEKTI_NIMI === "ANDMEBAAS"  ? '<?php echo rtrim(dirname($_SERVER['PHP_SELF']), '/'); ?>'   : '<?php echo rtrim(dirname($_SERVER['PHP_SELF']), '/').'/'.htmlspecialchars($projekti_nimetus); ?>';
+        const Andmed        = {puu: [],valitudSõlm: null,laienenudSõlmed: new Set()};
         async function apiKutse(action, params = {}) {
             const url = new URL(window.location.href);
             url.searchParams.set('action', action);
@@ -814,8 +982,7 @@ if (isset($_GET['action'])) {
                 const peasisu = document.getElementById('peasisu');
                 const ajaluguVaade = document.getElementById('ajalugu-vaade');
                 const fullPath = this.getFullPath(Andmed.valitudSõlm);
-                console.log('Kuva postitamise leht:', fullPath);
-
+                
                 peasisu.classList.remove('hidden');
                 ajaluguVaade.classList.add('hidden');
                 peasisu.innerHTML = `
@@ -826,16 +993,25 @@ if (isset($_GET['action'])) {
                             <button class="file-upload-btn">Laadi üles failid</button>
                             <input type="file" multiple id="faili-sisend" style="display: none;">
                         </div>
+                        <div id="upload-preview" class="upload-preview-container"></div>
+                        <div class="progress-container">
+                            <div class="progress-bar" id="upload-progress">0%</div>
+                        </div>
                         <button onclick="PostitusteHaldur.lisaPostitus()">Postita</button>
                     </div>
                     <div id="postitused"></div>
                 `;
+
+                const fileInput = peasisu.querySelector('#faili-sisend');
+                const fileBtn = peasisu.querySelector('.file-upload-btn');
+                
+                fileBtn.addEventListener('click', () => fileInput.click());
+                fileInput.addEventListener('change', (e) => PostitusteHaldur.handleFileSelect(e));
+                
+                PostitusteHaldur.updatePreview(); // Show any existing selected files
                 PostitusteHaldur.lisaSoovitusKuulajad(peasisu);
                 PostitusteHaldur.kuvaPostitused();
                 FailideJaPiltideHaldur.kuvaFailidJaPildid();
-                const fileBtn = peasisu.querySelector('.file-upload-btn');
-                const fileInput = peasisu.querySelector('#faili-sisend');
-                fileBtn.addEventListener('click', () => fileInput.click());
             },
             valiSõlm(puuId, type, id) {
                 const sõlm = this.findNode(Andmed.puu, puuId);
@@ -844,7 +1020,6 @@ if (isset($_GET['action'])) {
                     JooksevHaldur.lisaLink(sõlm.on_oks ? 'oks' : 'leht', sõlm.id, sõlm.id, sõlm.nimi);
                     this.kuvaPostitamisLeht();
                     document.getElementById('otsingu-tulemused').innerHTML = '';
-                    // Kui on kommentaar või pildi_kommentaar, liigu konkreetse kirje juurde
                     if (type === 'kommentaar' || type === 'pildi_kommentaar') {
                         setTimeout(() => {
                             const element = document.getElementById(`${type === 'kommentaar' ? 'kommentaar' : 'fail'}-${id}`);
@@ -1040,21 +1215,121 @@ if (isset($_GET['action'])) {
             }
         };
         const PostitusteHaldur = {
+            selectedFiles: [],
+            handleFileSelect(event) {
+                const newFiles = Array.from(event.target.files);
+                this.selectedFiles = [...this.selectedFiles, ...newFiles];
+                this.uploadProgress = new Array(this.selectedFiles.length).fill(0); // Initialize progress for each file
+                this.updatePreview();
+                event.target.value = '';
+            },
+            updatePreview() {
+                const previewContainer = document.getElementById('upload-preview');
+                if (!previewContainer) return;
+                previewContainer.innerHTML = '';
+                
+                this.selectedFiles.forEach((file, index) => {
+                    const previewItem = document.createElement('div');
+                    previewItem.className = 'preview-item';
+                    
+                    let content = '';
+                    if (file.type.startsWith('image/')) {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            content = `
+                                <img src="${e.target.result}" onclick="PostitusteHaldur.previewImage('${e.target.result}')">
+                                <span>${file.name}</span>
+                                <i class="fas fa-times remove-btn" onclick="PostitusteHaldur.removeFile(${index})"></i>
+                            `;
+                            previewItem.innerHTML = content;
+                        };
+                        reader.readAsDataURL(file);
+                    } else {
+                        content = `
+                            <i class="fas fa-file"></i>
+                            <span>${file.name}</span>
+                            <i class="fas fa-times remove-btn" onclick="PostitusteHaldur.removeFile(${index})"></i>
+                        `;
+                        previewItem.innerHTML = content;
+                    }
+                    
+                    previewContainer.appendChild(previewItem);
+                });
+            },
+            removeFile(index) {
+                this.selectedFiles.splice(index, 1);
+                this.uploadProgress.splice(index, 1);
+                this.updatePreview();
+            },
+            previewImage(src) {
+                const modal = document.getElementById('galerii-modal');
+                const modalImg = document.getElementById('modal-pilt');
+                const postTekstDiv = document.getElementById('modal-post-tekst');
+                
+                modalImg.src = src;
+                postTekstDiv.innerHTML = '<p>Eelvaade - pole veel postitatud</p>';
+                modal.classList.add('active');
+                
+                modal.onclick = (e) => {
+                    if (e.target === modal) modal.classList.remove('active');
+                };
+            },
+            updateProgressBar() {
+                const progressBar = document.getElementById('upload-progress');
+                if (!progressBar) return;
+                
+                const totalProgress = this.uploadProgress.length > 0 
+                    ? this.uploadProgress.reduce((sum, progress) => sum + progress, 0) / this.uploadProgress.length 
+                    : 0;
+                
+                progressBar.style.width = `${totalProgress}%`;
+                progressBar.textContent = `${Math.round(totalProgress)}%`;
+            },
             async lisaPostitus() {
                 if (!Andmed.valitudSõlm) return alert('Vali esmalt sõlm!');
                 const tekst = document.querySelector('.postituse-redaktor textarea').value;
                 if (!tekst) return alert('Sisesta postituse tekst!');
-                const failid = document.getElementById('faili-sisend').files;
+
                 const manused = [];
-                for (const fail of failid) {
+                this.uploadProgress = new Array(this.selectedFiles.length).fill(0);
+                
+                for (let i = 0; i < this.selectedFiles.length; i++) {
+                    const file = this.selectedFiles[i];
                     const formData = new FormData();
-                    formData.append('file', fail);
-                    const vastus = await fetch(window.location.href, { method: 'POST', body: formData });
-                    const data = await vastus.json();
-                    if (data.status === 'uploaded') {
-                        manused.push({ path: data.path, type: data.type });
-                    }
+                    formData.append('file', file);
+
+                    const xhr = new XMLHttpRequest();
+                    const uploadPromise = new Promise((resolve) => {
+                        xhr.upload.onprogress = (event) => {
+                            if (event.lengthComputable) {
+                                this.uploadProgress[i] = (event.loaded / event.total) * 100;
+                                this.updateProgressBar();
+                            }
+                        };
+
+                        xhr.onload = () => {
+                            if (xhr.status === 200) {
+                                const data = JSON.parse(xhr.responseText);
+                                if (data.status === 'uploaded') {
+                                    manused.push({ path: data.path, type: data.type });
+                                    this.uploadProgress[i] = 100;
+                                    this.updateProgressBar();
+                                }
+                                resolve();
+                            }
+                        };
+
+                        xhr.onerror = () => {
+                            console.error('Upload failed for file:', file.name);
+                            resolve(); // Continue with other uploads even if one fails
+                        };
+                    });
+
+                    xhr.open('POST', window.location.href, true);
+                    xhr.send(formData);
+                    await uploadPromise;
                 }
+
                 const vastus = await fetch(window.location.href, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -1065,10 +1340,14 @@ if (isset($_GET['action'])) {
                         manused: JSON.stringify(manused)
                     })
                 });
+                
                 const data = await vastus.json();
                 if (data.status === 'added') {
                     document.querySelector('.postituse-redaktor textarea').value = '';
-                    document.getElementById('faili-sisend').value = '';
+                    this.selectedFiles = [];
+                    this.uploadProgress = [];
+                    this.updatePreview();
+                    this.updateProgressBar(); // Reset to 0%
                     this.kuvaPostitused();
                     AutomaatSoovitus.laadiPealkirjad();
                     FailideJaPiltideHaldur.kuvaFailidJaPildid();
@@ -1080,15 +1359,32 @@ if (isset($_GET['action'])) {
                 const modal = document.getElementById('faili-modal');
                 const link = document.getElementById('modal-fail-link');
                 const postTekstDiv = document.getElementById('modal-fail-post-tekst');
-                link.href = path;
-                link.innerHTML = `<b class="must_tekst">Vaata või lae alla:</b> ${fileName} <button class="copy-btn" data-text="${encodeURIComponent(fileName)}" title="Kopeeri"><i class="fas fa-copy"></i></button>`;
+                const extension = fileName.split('.').pop().toLowerCase();
+                let fullPath;
+
+                if (['txt','md','odt','pdf','ods'].includes(extension)) {
+                    fullPath = `${JUUR_KAUST}/view_file.php?file=${encodeURIComponent(path.substring(1))}&projekt=${PROJEKTI_NIMI}`;
+                } else {
+                    fullPath = `${BASE_URL}${path}`;
+                }
+
+                link.href = fullPath;
+                link.target = '_blank'; // Avab uues aknas, kui otse klikitakse
+                link.innerHTML = `
+                    <b class="must_tekst">Vaata või lae alla:</b> ${fileName} 
+                    <button class="copy-btn" data-text="${encodeURIComponent(fileName)}" title="Kopeeri">
+                        <i class="fas fa-copy"></i>
+                    </button>`;
                 modal.classList.add('active');
-                const relativePath = path.split(BASE_URL)[1];
+
+                // Otsime postituse, millega fail on seotud
+                const relativePath = path.split(BASE_URL)[1] || path;
                 const kõikPostitused = await apiKutse('get_postitused');
                 const postitus = kõikPostitused.find(p => {
                     const manused = JSON.parse(p.manused || '[]');
                     return manused.some(m => m.path === relativePath);
                 });
+
                 if (postitus) {
                     let tekst = postitus.tekst.replace(/\[([^\]]+)\]\(#postitus-(\d+)\)/g, 
                         (match, p1, p2) => {
@@ -1096,15 +1392,26 @@ if (isset($_GET['action'])) {
                             const puuId = targetPost ? targetPost.puu_id : null;
                             return `<a href="#postitus-${p2}" onclick="AjaluguHaldur.liiguKirjeni('postitus', ${p2}, ${puuId || 'null'}); return false;">${p1}</a>`;
                         });
-                    postTekstDiv.innerHTML = `${tekst} <button class="copy-btn" data-text="${encodeURIComponent(postitus.tekst)}" title="Kopeeri8"><i class="fas fa-copy"></i></button> <small>${new Date(postitus.aeg * 1000).toLocaleString()}</small>`;
+                    postTekstDiv.innerHTML = `
+                        ${tekst} 
+                        <button class="copy-btn" data-text="${encodeURIComponent(postitus.tekst)}" title="Kopeeri">
+                            <i class="fas fa-copy"></i>
+                        </button> 
+                        <small>${new Date(postitus.aeg * 1000).toLocaleString()}</small>`;
                 } else {
                     postTekstDiv.innerHTML = '<p>Postitust ei leitud.</p>';
                 }
+
+                // Kuva faili kommentaarid
                 this.kuvaFailiKommentaarid(relativePath);
                 document.getElementById('faili-kommentaar-nupp').onclick = () => this.lisaFailiKommentaar(relativePath);
+
+                // Modal sulgemine
                 modal.onclick = (e) => {
                     if (e.target === modal) modal.classList.remove('active');
                 };
+
+                // Lisa soovituste kuulajad ja kopeerimise funktsionaalsus
                 this.lisaSoovitusKuulajad(modal);
                 modal.querySelectorAll('.copy-btn').forEach(btn => {
                     btn.addEventListener('click', () => {
@@ -1204,30 +1511,45 @@ if (isset($_GET['action'])) {
                 const konteiner = document.getElementById('postitused');
                 konteiner.innerHTML = '';
                 if (!Andmed.valitudSõlm) return;
+
                 const postitused = await apiKutse('get_postitused', { puu_id: Andmed.valitudSõlm.id });
                 const kõikPostitused = await apiKutse('get_postitused');
+
                 for (const postitus of postitused) {
                     const div = document.createElement('div');
                     div.className = 'postitus';
                     div.id = `postitus-${postitus.id}`;
+
+                    // Postituse teksti töötlemine linkidega
                     let tekst = postitus.tekst.replace(/\[([^\]]+)\]\(#postitus-(\d+)\)/g, 
                         (match, p1, p2) => {
                             const targetPost = kõikPostitused.find(p => p.id === parseInt(p2));
                             const puuId = targetPost ? targetPost.puu_id : null;
                             return `<a href="#postitus-${p2}" class="postitus-link" data-id="${p2}" data-puu-id="${puuId || ''}">${p1}</a>`;
                         });
+
+                    // Manuste töötlemine
                     const manused = JSON.parse(postitus.manused || '[]');
                     let failideHtml = '<div class="postituse-failid">';
                     const galerii = document.createElement('div');
                     galerii.className = 'galerii';
+
                     for (const manus of manused) {
                         const fullPath = `${BASE_URL}${manus.path}`;
                         const fileName = manus.path.split('/').pop();
+                        const extension = fileName.split('.').pop().toLowerCase();
+                        let linkPath = fullPath;
+
+                        if (['txt','md','odt','pdf','ods'].includes(extension)) {
+                            linkPath = `${JUUR_KAUST}/view_file.php?file=${encodeURIComponent(manus.path.substring(1))}&projekt=${PROJEKTI_NIMI}`;
+                        }
+
                         if (manus.type.startsWith('image/')) {
                             const galeriiÜksus = document.createElement('div');
-                            galeriiÜksus.className = 'galerii-üksus';
+                            galeriiÜksus.className = 'galerii-üksus-postitus';
                             galeriiÜksus.innerHTML = `<img src="${fullPath}" alt="${fileName}" onclick="PostitusteHaldur.avaPilt('${fullPath}')">`;
                             galerii.appendChild(galeriiÜksus);
+
                             const imgComments = await apiKutse('get_image_comments', { pilt_path: manus.path });
                             if (imgComments.length > 0) {
                                 const imgCommDiv = document.createElement('div');
@@ -1252,8 +1574,9 @@ if (isset($_GET['action'])) {
                             }
                         } else {
                             failideHtml += `
-                                <a href="#" onclick="PostitusteHaldur.avaFail('${fullPath}', '${fileName}'); return false;">${fileName}</a>
+                                <a href="${linkPath}" target="_blank" onclick="PostitusteHaldur.avaFail('${manus.path}', '${fileName}'); return false;">${fileName}</a>
                                 <button class="copy-btn" data-text="${encodeURIComponent(fileName)}" title="Kopeeri3"><i class="fas fa-copy"></i></button>`;
+                            
                             const fileComments = await apiKutse('get_image_comments', { pilt_path: manus.path });
                             if (fileComments.length > 0) {
                                 const fileCommDiv = document.createElement('div');
@@ -1266,7 +1589,7 @@ if (isset($_GET['action'])) {
                                             return `<a href="#postitus-${p2}" class="postitus-link" data-id="${p2}" data-puu-id="${puuId || ''}">${p1}</a>`;
                                         });
                                     fileCommDiv.innerHTML += `
-                                        <div class="kommentaar faili-kommentaar" data-komm-id="${komm.id}" onclick="PostitusteHaldur.avaFail('${fullPath}', '${fileName}')">
+                                        <div class="kommentaar faili-kommentaar" data-komm-id="${komm.id}" onclick="PostitusteHaldur.avaFail('${manus.path}', '${fileName}')">
                                             <i class="fas fa-file" style="margin-top: -7px; width: 50px; height: 50px; float: left; margin-right: -17px; font-size: 30px; line-height: 50px;"></i>
                                             <div style="overflow: hidden;">
                                                 <p>${kommTekst}</p>
@@ -1278,11 +1601,16 @@ if (isset($_GET['action'])) {
                             }
                         }
                     }
+
                     failideHtml += '</div>' + (galerii.children.length > 0 ? galerii.outerHTML : '');
+
+                    // Kommentaaride töötlemine
                     const kommentaarid = this.ehitaKommentaarideHierarhia(postitus.kommentaarid || []);
                     let kommentaarideHtml = '<div class="postituse-kommentaarid">';
                     kommentaarideHtml += this.renderKommentaarid(kommentaarid, postitus.id, kõikPostitused);
                     kommentaarideHtml += '</div>';
+
+                    // Postituse HTML
                     div.innerHTML = `
                         <div class="postitus-text">${tekst} <button class="copy-btn" data-text="${encodeURIComponent(postitus.tekst)}" title="Kopeeri5"><i class="fas fa-copy"></i></button></div>
                         <div class="postitus-timestamp">${new Date(postitus.aeg * 1000).toLocaleString()}</div>
@@ -1296,9 +1624,13 @@ if (isset($_GET['action'])) {
                         </div>
                     `;
                     konteiner.appendChild(div);
+
+                    // Muutmise nupu sündmus
                     const editBtn = div.querySelector('.edit-btn');
                     editBtn.addEventListener('click', () => this.toggleMuudaPostitus(postitus.id, tekst));
                 }
+
+                // Lingi sündmuste lisamine
                 const lingid = konteiner.querySelectorAll('.postitus-link');
                 lingid.forEach(link => {
                     link.addEventListener('click', (e) => {
@@ -1310,6 +1642,8 @@ if (isset($_GET['action'])) {
                         AjaluguHaldur.liiguKirjeni('postitus', id, puuId);
                     });
                 });
+
+                // Kopeerimisnuppude sündmused
                 document.querySelectorAll('.copy-btn').forEach(btn => {
                     btn.addEventListener('click', () => {
                         const tekst = decodeURIComponent(btn.dataset.text);
@@ -1329,6 +1663,7 @@ if (isset($_GET['action'])) {
                         }
                     });
                 });
+
                 this.lisaSoovitusKuulajad(konteiner);
                 FailideJaPiltideHaldur.kuvaFailidJaPildid();
             },
@@ -1627,55 +1962,71 @@ if (isset($_GET['action'])) {
                 });
             }
         };
-
         const FailideJaPiltideHaldur = {
             async kuvaFailidJaPildid() {
                 const failideKonteiner = document.getElementById('failide-sisu');
                 const piltideKonteiner = document.getElementById('galerii-sisu');
                 failideKonteiner.innerHTML = '';
                 piltideKonteiner.innerHTML = '';
+
                 if (!Andmed.valitudSõlm) {
                     failideKonteiner.innerHTML = '<p>Vali sõlm!</p>';
                     piltideKonteiner.innerHTML = '<p>Vali sõlm!</p>';
                     return;
                 }
+
                 const postitused = await apiKutse('get_postitused', { puu_id: Andmed.valitudSõlm.id });
                 const failid = [];
                 const pildid = [];
+
                 postitused.forEach(post => {
                     const manused = JSON.parse(post.manused || '[]');
                     manused.forEach(manus => {
-                        const fullPath = `${BASE_URL}${manus.path}`;
-                        const fileName = manus.path.split('/').pop();
+                        const fullPath = `${BASE_URL}${manus.path}`; // e.g., /marcmic_2/portiaz_5/uploads/1743007856_1742988091_installer.odt
+                        const fileName = manus.path.split('/').pop(); // e.g., 1743007856_1742988091_installer.odt
+                        const extension = fileName.split('.').pop().toLowerCase();
+                        let linkPath = fullPath;
+
+                        if (['txt', 'md', 'odt', 'pdf', 'ods'].includes(extension)) {
+                            // Extract the relative path starting from 'uploads'
+                            const relativePath = manus.path.split('/uploads/')[1] || manus.path.substring(1);
+                            linkPath = `${JUUR_KAUST}/view_file.php?file=${encodeURIComponent(relativePath)}&projekt=${PROJEKTI_NIMI}`;
+                        }
+
                         if (manus.type.startsWith('image/')) {
                             pildid.push({ path: fullPath, name: fileName, postId: post.id });
                         } else {
-                            failid.push({ path: fullPath, name: fileName, postId: post.id });
+                            failid.push({ path: linkPath, name: fileName, postId: post.id });
                         }
                     });
                 });
+
                 if (failid.length === 0) {
-                    failideKonteiner.innerHTML = '<p>Faile pole.</p>';
+                    failideKonteiner.innerHTML = '<p></p>';//Faile pole
                 } else {
                     failid.forEach(fail => {
                         const a = document.createElement('a');
-                        a.href = '#';
+                        a.href = fail.path;
+                        a.target = '_blank';
                         a.textContent = fail.name;
                         a.onclick = (e) => {
                             e.preventDefault();
-                            PostitusteHaldur.avaFail(fail.path, fail.name);
+                            const origPath = fail.path.includes('view_file.php') 
+                                ? `/uploads/${fail.name}` // Simplified for non-viewed files
+                                : fail.path;
+                            PostitusteHaldur.avaFail(origPath, fail.name);
                             JooksevHaldur.lisaLink('fail', fail.postId, Andmed.valitudSõlm.id, fail.name);
                         };
                         failideKonteiner.appendChild(a);
                     });
                 }
+
                 if (pildid.length === 0) {
-                    piltideKonteiner.innerHTML = '<p>Pilte pole.</p>';
+                    piltideKonteiner.innerHTML = '<p></p>';//Pilte pole.
                 } else {
                     pildid.forEach(pilt => {
                         const div = document.createElement('div');
                         div.className = 'galerii-üksus';
-                        //div.innerHTML = `<img src="${pilt.path}" alt="${pilt.name}" title="${pilt.name}"><span>${pilt.name}</span>`;
                         div.innerHTML = `<img src="${pilt.path}" alt="${pilt.name}" title="${pilt.name}">`;
                         div.querySelector('img').onclick = () => {
                             PostitusteHaldur.avaPilt(pilt.path);
@@ -2075,6 +2426,9 @@ if (isset($_GET['action'])) {
             PuuHaldur.laadiPuu();
             AutomaatSoovitus.laadiPealkirjad();
             AjaluguHaldur.kuvaAjalugu();
+            let projekti_nimetus            = <?php echo json_encode(htmlspecialchars($projekti_nimetus)); ?>;
+            const projekti_nimetuse_element = document.getElementById('searchInput');
+            projekti_nimetuse_element.value = projekti_nimetus;
         });
     </script>
 </body>
