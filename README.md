@@ -57,6 +57,7 @@ composer require erusev/parsedown
 composer require phpoffice/phpspreadsheet
 apt install libreoffice --no-install-recommends
 apt install ttf-mscorefonts-installer fonts-liberation
+apt install gnome-screenshot
 ```
 ### Kaustade seaded
 ```bash
