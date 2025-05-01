@@ -466,16 +466,12 @@ if (isset($_GET['action'])) {
     <script src="https://unpkg.com/vue@2.6.10/dist/vue.min.js"></script>
     <script src="https://s3.tradingview.com/tv.js"></script>
     <style>
-        body { margin: 0; font-family: Arial, sans-serif; height: 100vh; display: flex; flex-direction: column; background: #f0f0f0; }
+        body{font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;line-height: 20px;font-size: 17px;}
+
+        body { margin: 0; height: 100vh; display: flex; flex-direction: column; background: #f0f0f0; }
         header { background: #ffffff; color: white; padding: 10px; position: sticky; top: 0; z-index: 10; }
-        #chart {
-            width: 100%;
-            height: 350px;
-            margin: auto;
-        }
-        .tradingview-widget-container {
-            width: 100%;
-        }
+        #chart {width: 100%;height: 350px;margin: auto;}
+        .tradingview-widget-container {width: 100%;}
         #otsing { width: 100%; padding: 8px; font-size: 16px; border: none; border-radius: 4px; }
         #otsingu-tulemused { position: absolute; background: white; color: black; max-height: 200px; overflow-y: auto; width: 50%; border: 1px solid #ccc; z-index: 20; }
         .otsingu-tulemus {padding: 5px;cursor: pointer;white-space: nowrap;overflow: hidden;text-overflow: ellipsis;}
@@ -518,7 +514,7 @@ if (isset($_GET['action'])) {
         .kommentaar button { margin-left: 10px; }
         .kommentaari-textarea:focus {outline: none;border-color: #f0f0f0;box-shadow: 0 0 5px rgba(26, 115, 232, 0.3);}
         .kommentaari-textarea{width: 100%;padding-bottom:10px;margin-bottom: 10px;height:50px;resize:both;border:1px solid #ccc;border-radius: 4px;font-size: 16px;box-sizing: border-box;white-space: pre-wrap;overflow-wrap: break-word;background: #fff;margin-top: 10px;}
-        .kommentaari-editor-container {font-family: Arial, sans-serif;height: 100px;border: 1px solid #ccc;border-radius: 4px;width: 100%;box-sizing: border-box;}
+        .kommentaari-editor-container {height: 100px;border: 1px solid #ccc;border-radius: 4px;width: 100%;box-sizing: border-box;}
         .kommentaari-editor-container:focus {outline: none;border-color: #f0f0f0;box-shadow: 0 0 5px rgba(26, 115, 232, 0.3);}
         .kommentaaride-lapsed{margin-left: 41px;}
         #pildi-kommentaar-tekst{width: 100%;height: 67px;}
@@ -618,7 +614,10 @@ if (isset($_GET['action'])) {
         #searchType {font-size: 22px;margin-left: 5px;padding: 5px;border: none;background-color: #fff;appearance: none;color: #c4c4c4;}
         #searchType:focus {outline: none;border-color: #f0f0f0;box-shadow: 0 0 5px rgba(26, 115, 232, 0.3);}
         .galerii-üksus-postitus, img{width: 100%;}
-</style>
+        .galerii-üksus-postitus video {width: 100%;height: auto;border-radius: 4px;cursor: pointer;}
+        .galerii-üksus video{width: 100%;height: 100%;cursor: pointer;}
+        .modal-image[src$=".webm"]{max-width: 70%;max-height: 100%;object-fit: contain;border-radius: 5px 0 0 5px;}
+    </style>
 </head>
 <body>
     <header>
@@ -1227,17 +1226,31 @@ if (isset($_GET['action'])) {
                 const previewContainer = document.getElementById('upload-preview');
                 if (!previewContainer) return;
                 previewContainer.innerHTML = '';
-                
+
                 this.selectedFiles.forEach((file, index) => {
                     const previewItem = document.createElement('div');
                     previewItem.className = 'preview-item';
-                    
+
                     let content = '';
                     if (file.type.startsWith('image/')) {
                         const reader = new FileReader();
                         reader.onload = (e) => {
                             content = `
                                 <img src="${e.target.result}" onclick="PostitusteHaldur.previewImage('${e.target.result}')">
+                                <span>${file.name}</span>
+                                <i class="fas fa-times remove-btn" onclick="PostitusteHaldur.removeFile(${index})"></i>
+                            `;
+                            previewItem.innerHTML = content;
+                        };
+                        reader.readAsDataURL(file);
+                    } else if (file.type === 'video/webm') {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            content = `
+                                <video width="100" height="100" controls>
+                                    <source src="${e.target.result}" type="video/webm">
+                                    Your browser does not support the video tag.
+                                </video>
                                 <span>${file.name}</span>
                                 <i class="fas fa-times remove-btn" onclick="PostitusteHaldur.removeFile(${index})"></i>
                             `;
@@ -1252,7 +1265,7 @@ if (isset($_GET['action'])) {
                         `;
                         previewItem.innerHTML = content;
                     }
-                    
+
                     previewContainer.appendChild(previewItem);
                 });
             },
@@ -1520,7 +1533,6 @@ if (isset($_GET['action'])) {
                     div.className = 'postitus';
                     div.id = `postitus-${postitus.id}`;
 
-                    // Postituse teksti töötlemine linkidega
                     let tekst = postitus.tekst.replace(/\[([^\]]+)\]\(#postitus-(\d+)\)/g, 
                         (match, p1, p2) => {
                             const targetPost = kõikPostitused.find(p => p.id === parseInt(p2));
@@ -1528,7 +1540,6 @@ if (isset($_GET['action'])) {
                             return `<a href="#postitus-${p2}" class="postitus-link" data-id="${p2}" data-puu-id="${puuId || ''}">${p1}</a>`;
                         });
 
-                    // Manuste töötlemine
                     const manused = JSON.parse(postitus.manused || '[]');
                     let failideHtml = '<div class="postituse-failid">';
                     const galerii = document.createElement('div');
@@ -1549,68 +1560,29 @@ if (isset($_GET['action'])) {
                             galeriiÜksus.className = 'galerii-üksus-postitus';
                             galeriiÜksus.innerHTML = `<img src="${fullPath}" alt="${fileName}" onclick="PostitusteHaldur.avaPilt('${fullPath}')">`;
                             galerii.appendChild(galeriiÜksus);
-
-                            const imgComments = await apiKutse('get_image_comments', { pilt_path: manus.path });
-                            if (imgComments.length > 0) {
-                                const imgCommDiv = document.createElement('div');
-                                imgCommDiv.className = 'pildi-kommentaarid';
-                                imgComments.forEach(komm => {
-                                    let kommTekst = komm.tekst.replace(/\[([^\]]+)\]\(#postitus-(\d+)\)/g, 
-                                        (match, p1, p2) => {
-                                            const targetPost = kõikPostitused.find(p => p.id === parseInt(p2));
-                                            const puuId = targetPost ? targetPost.puu_id : null;
-                                            return `<a href="#postitus-${p2}" class="postitus-link" data-id="${p2}" data-puu-id="${puuId || ''}">${p1}</a>`;
-                                        });
-                                    imgCommDiv.innerHTML += `
-                                        <div class="kommentaar pildi-kommentaar" data-komm-id="${komm.id}" onclick="PostitusteHaldur.avaPilt('${fullPath}')">
-                                            <img src="${fullPath}" style="width: 50px; height: 50px; float: left; margin-right: 10px;">
-                                            <div style="overflow: hidden;">
-                                                <p>${kommTekst} <button class="copy-btn" data-text="${encodeURIComponent(komm.tekst)}" title="Kopeeri2"><i class="fas fa-copy"></i></button></p>
-                                                <small>${new Date(komm.aeg * 1000).toLocaleString()}</small>
-                                            </div>
-                                        </div>`;
-                                });
-                                galerii.appendChild(imgCommDiv);
-                            }
+                        } else if (manus.type === 'video/webm') {
+                            const galeriiÜksus = document.createElement('div');
+                            galeriiÜksus.className = 'galerii-üksus-postitus';
+                            galeriiÜksus.innerHTML = `
+                                <video width="150" height="150" controls onclick="PostitusteHaldur.avaVideo('${fullPath}')">
+                                    <source src="${fullPath}" type="video/webm">
+                                    Your browser does not support the video tag.
+                                </video>`;
+                            galerii.appendChild(galeriiÜksus);
                         } else {
                             failideHtml += `
                                 <a href="${linkPath}" target="_blank" onclick="PostitusteHaldur.avaFail('${manus.path}', '${fileName}'); return false;">${fileName}</a>
                                 <button class="copy-btn" data-text="${encodeURIComponent(fileName)}" title="Kopeeri3"><i class="fas fa-copy"></i></button>`;
-                            
-                            const fileComments = await apiKutse('get_image_comments', { pilt_path: manus.path });
-                            if (fileComments.length > 0) {
-                                const fileCommDiv = document.createElement('div');
-                                fileCommDiv.className = 'faili-kommentaarid';
-                                fileComments.forEach(komm => {
-                                    let kommTekst = komm.tekst.replace(/\[([^\]]+)\]\(#postitus-(\d+)\)/g, 
-                                        (match, p1, p2) => {
-                                            const targetPost = kõikPostitused.find(p => p.id === parseInt(p2));
-                                            const puuId = targetPost ? targetPost.puu_id : null;
-                                            return `<a href="#postitus-${p2}" class="postitus-link" data-id="${p2}" data-puu-id="${puuId || ''}">${p1}</a>`;
-                                        });
-                                    fileCommDiv.innerHTML += `
-                                        <div class="kommentaar faili-kommentaar" data-komm-id="${komm.id}" onclick="PostitusteHaldur.avaFail('${manus.path}', '${fileName}')">
-                                            <i class="fas fa-file" style="margin-top: -7px; width: 50px; height: 50px; float: left; margin-right: -17px; font-size: 30px; line-height: 50px;"></i>
-                                            <div style="overflow: hidden;">
-                                                <p>${kommTekst}</p>
-                                                <small>${new Date(komm.aeg * 1000).toLocaleString()}</small>
-                                            </div>
-                                        </div>`;
-                                });
-                                failideHtml += fileCommDiv.outerHTML;
-                            }
                         }
                     }
 
                     failideHtml += '</div>' + (galerii.children.length > 0 ? galerii.outerHTML : '');
 
-                    // Kommentaaride töötlemine
                     const kommentaarid = this.ehitaKommentaarideHierarhia(postitus.kommentaarid || []);
                     let kommentaarideHtml = '<div class="postituse-kommentaarid">';
                     kommentaarideHtml += this.renderKommentaarid(kommentaarid, postitus.id, kõikPostitused);
                     kommentaarideHtml += '</div>';
 
-                    // Postituse HTML
                     div.innerHTML = `
                         <div class="postitus-text">${tekst} <button class="copy-btn" data-text="${encodeURIComponent(postitus.tekst)}" title="Kopeeri5"><i class="fas fa-copy"></i></button></div>
                         <div class="postitus-timestamp">${new Date(postitus.aeg * 1000).toLocaleString()}</div>
@@ -1625,12 +1597,11 @@ if (isset($_GET['action'])) {
                     `;
                     konteiner.appendChild(div);
 
-                    // Muutmise nupu sündmus
                     const editBtn = div.querySelector('.edit-btn');
                     editBtn.addEventListener('click', () => this.toggleMuudaPostitus(postitus.id, tekst));
                 }
 
-                // Lingi sündmuste lisamine
+                // Add event listeners for links and copy buttons (unchanged)
                 const lingid = konteiner.querySelectorAll('.postitus-link');
                 lingid.forEach(link => {
                     link.addEventListener('click', (e) => {
@@ -1643,7 +1614,6 @@ if (isset($_GET['action'])) {
                     });
                 });
 
-                // Kopeerimisnuppude sündmused
                 document.querySelectorAll('.copy-btn').forEach(btn => {
                     btn.addEventListener('click', () => {
                         const tekst = decodeURIComponent(btn.dataset.text);
@@ -1771,6 +1741,69 @@ if (isset($_GET['action'])) {
                 this.kuvaPildiKommentaarid(relativePath);
                 document.getElementById('pildi-kommentaar-nupp').onclick = () => this.lisaPildiKommentaar(relativePath);
                 modal.onclick = (e) => {if (e.target === modal) modal.classList.remove('active');};
+                this.lisaSoovitusKuulajad(modal);
+                modal.querySelectorAll('.copy-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const tekst = decodeURIComponent(btn.dataset.text);
+                        const tempInput = document.createElement('textarea');
+                        tempInput.value = tekst;
+                        document.body.appendChild(tempInput);
+                        tempInput.select();
+                        try {
+                            document.execCommand('copy');
+                            btn.innerHTML = '<i class="fas fa-check"></i>';
+                            setTimeout(() => btn.innerHTML = '<i class="fas fa-copy"></i>', 1000);
+                        } catch (err) {
+                            console.error('Kopeerimine ebaõnnestus:', err);
+                            alert('Kopeerimine ebaõnnestus!');
+                        } finally {
+                            document.body.removeChild(tempInput);
+                        }
+                    });
+                });
+            },
+            async avaVideo(path) {
+                const modal = document.getElementById('galerii-modal');
+                const modalContent = modal.querySelector('.modal-content');
+                const postTekstDiv = document.getElementById('modal-post-tekst');
+                
+                // Replace the image with a video element
+                const existingImg = modal.querySelector('.modal-image');
+                if (existingImg) existingImg.remove();
+                
+                const video = document.createElement('video');
+                video.className = 'modal-image';
+                video.controls = true;
+                video.innerHTML = `<source src="${path}" type="video/webm">Your browser does not support the video tag.`;
+                modalContent.insertBefore(video, modalContent.firstChild);
+
+                modal.classList.add('active');
+                const relativePath = path.split(BASE_URL)[1];
+                const kõikPostitused = await apiKutse('get_postitused');
+                const postitus = kõikPostitused.find(p => {
+                    const manused = JSON.parse(p.manused || '[]');
+                    return manused.some(m => m.path === relativePath);
+                });
+
+                if (postitus) {
+                    let tekst = postitus.tekst.replace(/\[([^\]]+)\]\(#postitus-(\d+)\)/g, 
+                        (match, p1, p2) => {
+                            const targetPost = kõikPostitused.find(p => p.id === parseInt(p2));
+                            const puuId = targetPost ? targetPost.puu_id : null;
+                            return `<a href="#postitus-${p2}" onclick="AjaluguHaldur.liiguKirjeni('postitus', ${p2}, ${puuId || 'null'}); return false;">${p1}</a>`;
+                        });
+                    postTekstDiv.innerHTML = `${tekst} <button class="copy-btn" data-text="${encodeURIComponent(postitus.tekst)}" title="Kopeeri7"><i class="fas fa-copy"></i></button> <small>${new Date(postitus.aeg * 1000).toLocaleString()}</small>`;
+                } else {
+                    postTekstDiv.innerHTML = '<p>Postitust ei leitud.</p>';
+                }
+
+                this.kuvaPildiKommentaarid(relativePath);
+                document.getElementById('pildi-kommentaar-nupp').onclick = () => this.lisaPildiKommentaar(relativePath);
+
+                modal.onclick = (e) => {
+                    if (e.target === modal) modal.classList.remove('active');
+                };
+
                 this.lisaSoovitusKuulajad(modal);
                 modal.querySelectorAll('.copy-btn').forEach(btn => {
                     btn.addEventListener('click', () => {
@@ -1977,24 +2010,23 @@ if (isset($_GET['action'])) {
 
                 const postitused = await apiKutse('get_postitused', { puu_id: Andmed.valitudSõlm.id });
                 const failid = [];
-                const pildid = [];
+                const pildidJaVideod = [];
 
                 postitused.forEach(post => {
                     const manused = JSON.parse(post.manused || '[]');
                     manused.forEach(manus => {
-                        const fullPath = `${BASE_URL}${manus.path}`; // e.g., /marcmic_2/portiaz_5/uploads/1743007856_1742988091_installer.odt
-                        const fileName = manus.path.split('/').pop(); // e.g., 1743007856_1742988091_installer.odt
+                        const fullPath = `${BASE_URL}${manus.path}`;
+                        const fileName = manus.path.split('/').pop();
                         const extension = fileName.split('.').pop().toLowerCase();
                         let linkPath = fullPath;
 
                         if (['txt', 'md', 'odt', 'pdf', 'ods'].includes(extension)) {
-                            // Extract the relative path starting from 'uploads'
                             const relativePath = manus.path.split('/uploads/')[1] || manus.path.substring(1);
                             linkPath = `${JUUR_KAUST}/view_file.php?file=${encodeURIComponent(relativePath)}&projekt=${PROJEKTI_NIMI}`;
                         }
 
-                        if (manus.type.startsWith('image/')) {
-                            pildid.push({ path: fullPath, name: fileName, postId: post.id });
+                        if (manus.type.startsWith('image/') || manus.type === 'video/webm') {
+                            pildidJaVideod.push({ path: fullPath, name: fileName, postId: post.id, type: manus.type });
                         } else {
                             failid.push({ path: linkPath, name: fileName, postId: post.id });
                         }
@@ -2002,7 +2034,7 @@ if (isset($_GET['action'])) {
                 });
 
                 if (failid.length === 0) {
-                    failideKonteiner.innerHTML = '<p></p>';//Faile pole
+                    failideKonteiner.innerHTML = '<p></p>';
                 } else {
                     failid.forEach(fail => {
                         const a = document.createElement('a');
@@ -2012,7 +2044,7 @@ if (isset($_GET['action'])) {
                         a.onclick = (e) => {
                             e.preventDefault();
                             const origPath = fail.path.includes('view_file.php') 
-                                ? `/uploads/${fail.name}` // Simplified for non-viewed files
+                                ? `/uploads/${fail.name}`
                                 : fail.path;
                             PostitusteHaldur.avaFail(origPath, fail.name);
                             JooksevHaldur.lisaLink('fail', fail.postId, Andmed.valitudSõlm.id, fail.name);
@@ -2021,17 +2053,29 @@ if (isset($_GET['action'])) {
                     });
                 }
 
-                if (pildid.length === 0) {
-                    piltideKonteiner.innerHTML = '<p></p>';//Pilte pole.
+                if (pildidJaVideod.length === 0) {
+                    piltideKonteiner.innerHTML = '<p></p>';
                 } else {
-                    pildid.forEach(pilt => {
+                    pildidJaVideod.forEach(item => {
                         const div = document.createElement('div');
                         div.className = 'galerii-üksus';
-                        div.innerHTML = `<img src="${pilt.path}" alt="${pilt.name}" title="${pilt.name}">`;
-                        div.querySelector('img').onclick = () => {
-                            PostitusteHaldur.avaPilt(pilt.path);
-                            JooksevHaldur.lisaLink('pilt', pilt.postId, Andmed.valitudSõlm.id, pilt.name);
-                        };
+                        if (item.type.startsWith('image/')) {
+                            div.innerHTML = `<img src="${item.path}" alt="${item.name}" title="${item.name}">`;
+                            div.querySelector('img').onclick = () => {
+                                PostitusteHaldur.avaPilt(item.path);
+                                JooksevHaldur.lisaLink('pilt', item.postId, Andmed.valitudSõlm.id, item.name);
+                            };
+                        } else if (item.type === 'video/webm') {
+                            div.innerHTML = `
+                                <video width="80" height="80" controls>
+                                    <source src="${item.path}" type="video/webm">
+                                    Your browser does not support the video tag.
+                                </video>`;
+                            div.querySelector('video').onclick = () => {
+                                PostitusteHaldur.avaVideo(item.path);
+                                JooksevHaldur.lisaLink('video', item.postId, Andmed.valitudSõlm.id, item.name);
+                            };
+                        }
                         piltideKonteiner.appendChild(div);
                     });
                 }
