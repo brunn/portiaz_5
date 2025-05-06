@@ -478,7 +478,7 @@ if (isset($_GET['action'])) {
         .otsingu-tulemus:hover, .otsingu-tulemus.active { background: #9d9d9d;color: #000000; }
         .konteiner { display: flex; flex: 1; overflow: hidden; }
         #puu-konteiner { width: 275px; background: #fff; overflow-y: auto; padding: 10px; position: relative; }
-        .puu-sõlm { padding: 5px; cursor: pointer; }
+        .puu-sõlm {cursor: pointer; }
         .puu-sõlm:hover { background: #9d9d9d; }
         .puu-sõlm.laiendatud > .alamlehed { display: block; }
         .puu-sõlm .alamlehed { display: none; }
