@@ -7,6 +7,9 @@ Jooksva info kogumiseks, korraldamiseks.
 
 Olen lisanud krüpto graafikute võimaluse Tradingview poolselt, et näiteks korraldada teatud sümbolitele infopanka.
 
+## Deepwiki
+Dokumentatsiooniks: https://deepwiki.com/brunn/portiaz_5
+
 
 ## Funktsionaalsus
 
