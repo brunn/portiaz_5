@@ -52,7 +52,11 @@ if ($extension === 'md') {
         </style>
     </head>
     <body>
-        <h1><?php echo htmlspecialchars($fileName); ?></h1>
+        <!---
+        <h1>
+            <?php echo htmlspecialchars($fileName); ?>
+        </h1>
+        --->
         <?php echo $htmlContent; ?>
     </body>
     </html>
